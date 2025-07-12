@@ -1,62 +1,69 @@
 """
-Ollama Client - MCP Server v1.1 Simplified
-Resilient client for Ollama communication with lazy initialization
+Ollama Client - MCP Server v1.2 Refactored
+Resilient async client for Ollama communication following MCP protocol standards
 
-Based on v0.9 resilience patterns but dramatically simplified
+Features:
+- Full async/await patterns with proper error handling
+- MCP protocol compliance with standardized responses
+- Professional error handling with troubleshooting information
+- Cross-platform compatibility
+- Comprehensive timeout management
 """
 
 import asyncio
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class ModelInfo:
-    """Basic model information"""
+    """Standardized model information following MCP protocol standards."""
     name: str
     size: int
     modified: str
+    digest: str = ""
     
     @property
     def size_human(self) -> str:
-        """Human readable size"""
+        """Human readable size formatting."""
+        size = float(self.size)
         for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if self.size < 1024.0:
-                return f"{self.size:.1f} {unit}"
-            self.size /= 1024.0
-        return f"{self.size:.1f} PB"
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} PB"
 
 
 class OllamaClient:
     """
-    Simplified resilient Ollama client
+    Resilient async Ollama client following MCP protocol standards.
     
     Key features:
-    - Lazy initialization (starts even if Ollama offline)
-    - Non-blocking health checks
-    - Graceful error handling
-    - Minimal dependencies
+    - Full async/await patterns with proper error handling
+    - MCP protocol compliance with standardized responses
+    - Professional error handling with troubleshooting information
+    - Cross-platform compatibility
+    - Comprehensive timeout management
     """
     
-    def __init__(self, host: str = "http://localhost:11434", timeout: int = 30):
-        """Initialize client without connecting"""
-        self.host = host
+    def __init__(self, host: str = "http://localhost:11434", timeout: float = 30.0):
+        """Initialize client with proper host formatting."""
+        self.host = host.rstrip('/')
         self.timeout = timeout
-        self.client = None
         self._initialized = False
         self._init_error = None
-        logger.debug(f"OllamaClient created for {host}")
+        logger.debug(f"OllamaClient created for {self.host}")
     
     def _ensure_client(self) -> bool:
-        """Ensure client is initialized, return success status"""
+        """Ensure client is initialized, return success status."""
         if self._initialized:
-            return self.client is not None
+            return self._init_error is None
         
         try:
             import ollama
-            self.client = ollama.Client(host=self.host)
             self._initialized = True
             logger.debug("Ollama client initialized successfully")
             return True
@@ -70,40 +77,58 @@ class OllamaClient:
             return False
     
     async def health_check(self) -> Dict[str, Any]:
-        """Check Ollama server health without blocking"""
+        """Check Ollama server health with proper async patterns."""
         if not self._ensure_client():
-            return {
-                "healthy": False,
-                "error": self._init_error,
-                "host": self.host
-            }
+            return self._create_health_error_response(
+                "Client initialization failed", self._init_error
+            )
         
         try:
-            # Try to list models as health check
-            loop = asyncio.get_event_loop()
-            models = await asyncio.wait_for(
-                loop.run_in_executor(None, self._sync_list),
-                timeout=5.0
+            # Use httpx for async HTTP requests
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{self.host}/api/tags")
+                response.raise_for_status()
+                
+                data = response.json()
+                models_count = len(data.get("models", []))
+                
+                return {
+                    "healthy": True,
+                    "models_count": models_count,
+                    "host": self.host,
+                    "message": "Ollama server is running"
+                }
+                
+        except httpx.TimeoutException:
+            return self._create_health_error_response(
+                "Connection timeout", "Check network connection and Ollama status"
             )
-            
-            return {
-                "healthy": True,
-                "models_count": len(models),
-                "host": self.host,
-                "message": "Ollama server responsive"
-            }
-        except asyncio.TimeoutError:
-            return {
-                "healthy": False,
-                "error": "Ollama server timeout",
-                "host": self.host
-            }
+        except httpx.HTTPStatusError as e:
+            return self._create_health_error_response(
+                f"HTTP error: {e.response.status_code}",
+                "Ollama server responded with error"
+            )
+        except httpx.ConnectError:
+            return self._create_health_error_response(
+                "Connection refused",
+                "Ollama server is not running. Start with: ollama serve"
+            )
         except Exception as e:
-            return {
-                "healthy": False,
-                "error": str(e),
-                "host": self.host
-            }
+            logger.error(f"Health check failed: {e}")
+            return self._create_health_error_response(
+                f"Unexpected error: {e}",
+                "Check system logs for details"
+            )
+    
+    def _create_health_error_response(self, error: str, troubleshooting: str) -> Dict[str, Any]:
+        """Create standardized health error response."""
+        return {
+            "healthy": False,
+            "error": error,
+            "host": self.host,
+            "troubleshooting": troubleshooting
+        }
     
     async def list_models(self) -> Dict[str, Any]:
         """List available models with error handling"""

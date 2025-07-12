@@ -1,0 +1,327 @@
+---
+globs: ["**/*.py", "pyproject.toml", "requirements.txt"]
+description: "Guidelines for adding and managing dependencies in Ollama MCP Server"
+tags: ["manual"]
+---
+
+# Dependency Management Guidelines
+
+You MUST follow these guidelines when adding or modifying dependencies for the Ollama MCP Server:
+
+## Self-Contained Design Principle
+
+**Zero External MCP Dependencies:**
+- NEVER add external MCP server dependencies
+- All MCP functionality MUST be implemented internally
+- Use only the official MCP Python SDK for protocol implementation
+- Maintain MIT license compatibility for all dependencies
+
+**Minimal Dependency Philosophy:**
+- Add dependencies only when absolutely necessary
+- Prefer Python standard library solutions when feasible
+- Choose well-maintained, popular libraries with good documentation
+- Avoid experimental or unmaintained packages
+
+## Core Dependencies Standards
+
+**Current Core Dependencies:**
+```toml
+# Core MCP and Ollama integration
+dependencies = [
+    "mcp>=1.0.0",              # MCP protocol implementation
+    "ollama>=0.3.0",           # Ollama client library
+    "psutil>=5.9.0",           # System resource monitoring
+    "aiofiles>=23.0.0",        # Async file operations
+    "PyYAML>=6.0.0",           # Configuration file parsing
+]
+```
+
+**Dependency Evaluation Criteria:**
+- **Necessity**: Is this functionality impossible with standard library?
+- **Maintenance**: Is the package actively maintained (updates in last 6 months)?
+- **Popularity**: Does it have significant adoption (>1000 weekly downloads)?
+- **License**: Is it MIT, Apache 2.0, or BSD compatible?
+- **Size**: Does it add minimal overhead to the installation?
+
+## Adding New Dependencies
+
+**Pre-Addition Checklist:**
+1. **Justify the Need**: Document why standard library is insufficient
+2. **Research Alternatives**: Compare at least 2-3 similar packages
+3. **Check Compatibility**: Verify Python 3.8+ compatibility
+4. **License Review**: Ensure license compatibility
+5. **Security Check**: Review for known vulnerabilities
+
+**Example Dependency Addition Process:**
+```python
+# BAD: Adding without justification
+# pip install some-random-package
+
+# GOOD: Documented decision process
+"""
+Dependency Addition Request: httpx
+
+Justification:
+- Need for async HTTP client with proper timeout handling
+- Standard library urllib/http.client don't support async
+- Ollama API requires robust HTTP/2 support
+
+Alternatives Considered:
+1. aiohttp: Good async support but heavier, more complex
+2. httpx: Modern, async-first, excellent documentation
+3. requests: Synchronous only, not suitable for async MCP server
+
+Selected: httpx
+- Excellent async support
+- Clean API similar to requests
+- HTTP/2 support built-in
+- Well-maintained (weekly updates)
+- MIT license compatible
+"""
+```
+
+## Development Dependencies
+
+**Development-Only Dependencies:**
+```toml
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",          # Testing framework
+    "pytest-asyncio>=0.21.0", # Async testing support
+    "pytest-cov>=4.0.0",      # Coverage reporting
+    "black>=23.0.0",          # Code formatting
+    "isort>=5.12.0",          # Import sorting
+    "flake8>=6.0.0",          # Linting
+    "mypy>=1.0.0",            # Type checking
+]
+```
+
+**Development Dependency Guidelines:**
+- Keep development dependencies separate from runtime dependencies
+- Use version ranges for development tools (allows updates)
+- Include all necessary tools for complete development workflow
+- Document development setup in README
+
+## Version Management
+
+**Version Pinning Strategy:**
+- **Runtime Dependencies**: Use minimum version with `>=` (e.g., `mcp>=1.0.0`)
+- **Development Dependencies**: Use minimum version with `>=` (e.g., `pytest>=7.0.0`)
+- **Critical Dependencies**: Pin exact versions if breaking changes are common
+- **Security Dependencies**: Update promptly when vulnerabilities are discovered
+
+**Version Update Process:**
+```bash
+# 1. Check current dependency versions
+pip list --outdated
+
+# 2. Update pyproject.toml with new versions
+# 3. Test thoroughly with new versions
+pytest
+
+# 4. Update lock files if using them
+pip freeze > requirements-dev.txt
+
+# 5. Document changes in commit message
+git commit -m "deps: update httpx to 0.25.0 for security fix"
+```
+
+## HTTP Client Dependencies
+
+**Current HTTP Client: httpx**
+- Chosen for async/await support and HTTP/2 compatibility
+- Used for all Ollama API communication
+- Provides proper timeout and connection pooling
+
+**HTTP Client Standards:**
+```python
+# Good: Using httpx for async HTTP requests
+async def make_request(url: str) -> Dict[str, Any]:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(url)
+        response.raise_for_status()
+        return response.json()
+
+# Bad: Using requests (synchronous) in async context
+def make_request(url: str) -> Dict[str, Any]:
+    response = requests.get(url)  # Blocks async event loop
+    return response.json()
+```
+
+## System Integration Dependencies
+
+**System Resource Monitoring: psutil**
+- Cross-platform system information
+- CPU, memory, and process monitoring
+- GPU detection capabilities
+
+**File Operations: aiofiles**
+- Async file I/O operations
+- Prevents blocking the event loop
+- Compatible with pathlib.Path
+
+**Configuration: PyYAML**
+- YAML configuration file parsing
+- Human-readable configuration format
+- Supports complex nested structures
+
+## Optional Dependencies
+
+**Optional Feature Dependencies:**
+```python
+# Handle optional dependencies gracefully
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+
+def process_data(data: List[float]) -> List[float]:
+    """Process data with optional numpy acceleration."""
+    if NUMPY_AVAILABLE:
+        return np.array(data).mean()
+    else:
+        return sum(data) / len(data)
+```
+
+## Dependency Security
+
+**Security Best Practices:**
+- Regularly audit dependencies for vulnerabilities
+- Use tools like `pip-audit` or `safety` for security scanning
+- Update dependencies promptly when security issues are found
+- Pin specific versions for production deployments
+
+**Security Audit Process:**
+```bash
+# Install security audit tools
+pip install pip-audit safety
+
+# Run security audit
+pip-audit
+safety check
+
+# Update vulnerable dependencies
+pip install --upgrade vulnerable-package
+```
+
+## Dependency Documentation
+
+**Documentation Requirements:**
+- Document all runtime dependencies in README
+- Explain why each dependency is needed
+- Include installation instructions
+- Document any optional dependencies
+
+**Dependency Documentation Template:**
+```markdown
+## Dependencies
+
+### Runtime Dependencies
+- **mcp**: Model Context Protocol implementation
+- **ollama**: Official Ollama Python client
+- **psutil**: Cross-platform system resource monitoring
+- **aiofiles**: Async file operations
+- **PyYAML**: Configuration file parsing
+
+### Development Dependencies
+- **pytest**: Testing framework with async support
+- **black**: Code formatting
+- **mypy**: Type checking
+- **flake8**: Code linting
+```
+
+## Dependency Removal
+
+**When to Remove Dependencies:**
+- Functionality no longer needed
+- Replaced by standard library solution
+- Package is unmaintained or insecure
+- License incompatibility discovered
+
+**Removal Process:**
+1. **Impact Assessment**: Identify all code using the dependency
+2. **Replacement Implementation**: Implement alternative solution
+3. **Testing**: Ensure all functionality still works
+4. **Documentation Update**: Update README and documentation
+5. **Cleanup**: Remove from pyproject.toml and import statements
+
+## Platform-Specific Dependencies
+
+**Cross-Platform Considerations:**
+- Ensure all dependencies work on Windows, Linux, and macOS
+- Handle platform-specific optional dependencies
+- Test installation on different platforms
+
+**Platform-Specific Dependency Example:**
+```python
+# Handle platform-specific dependencies
+import platform
+
+if platform.system() == "Windows":
+    try:
+        import wmi
+        WMI_AVAILABLE = True
+    except ImportError:
+        WMI_AVAILABLE = False
+else:
+    WMI_AVAILABLE = False
+```
+
+## CI/CD Integration
+
+**Dependency Testing in CI:**
+- Test with minimum supported versions
+- Test with latest versions
+- Test installation from scratch
+- Monitor for dependency conflicts
+
+**GitHub Actions Example:**
+```yaml
+name: Test Dependencies
+on: [push, pull_request]
+
+jobs:
+  test-dependencies:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, '3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+    
+    - name: Run tests
+      run: pytest
+    
+    - name: Security audit
+      run: pip-audit
+```
+
+## Version Control
+
+**What to Track:**
+- Always commit `pyproject.toml` changes
+- Include dependency updates in commit messages
+- Document breaking changes in pull requests
+- Use semantic versioning for your project
+
+**Commit Message Examples:**
+```bash
+# Good commit messages
+git commit -m "deps: add httpx 0.25.0 for async HTTP support"
+git commit -m "deps: update psutil to 5.9.4 for Python 3.11 compatibility"
+git commit -m "deps: remove unused requests dependency"
+
+# Bad commit messages
+git commit -m "update deps"
+git commit -m "fix stuff"

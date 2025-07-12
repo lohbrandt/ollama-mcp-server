@@ -1,0 +1,265 @@
+---
+globs: ["**/*"]
+description: "Rules for maintaining and using this project's knowledge base"
+---
+
+# Project Knowledge & Task Management
+
+This project uses Markdown files in the `/docs` directory to maintain a persistent memory and track tasks. You MUST adhere to this workflow to ensure context is never lost.
+
+## Documentation Framework Usage
+
+### Before Starting Any Task
+
+**Consult Documentation First:**
+- You MUST read `@docs/architecture.md` to understand the system design
+- You MUST read `@docs/development-guide.md` for implementation patterns
+- You MUST read `@docs/platform-compatibility.md` for cross-platform considerations
+- Reference the appropriate documentation before making any changes
+
+### During Development
+
+**Update Documentation As You Work:**
+- When making architectural changes, update `@docs/architecture.md`
+- When changing development processes, update `@docs/development-guide.md`
+- When adding platform-specific features, update `@docs/platform-compatibility.md`
+- Document decisions and rationale in the appropriate files
+
+### After Completing Tasks
+
+**Document New Patterns:**
+- If you discover a useful pattern, add it to the development guide
+- If you solve a complex problem, document the solution
+- If you add new tools or features, update the architecture documentation
+- Create new documentation files for major new features
+
+## Key Documentation Files
+
+### `docs/architecture.md`
+**Purpose**: System architecture and design decisions
+**When to Update**:
+- Adding new components or modules
+- Changing data flow or system interactions
+- Making architectural decisions
+- Modifying the technology stack
+
+**Example Updates**:
+```markdown
+## New Component: Authentication Manager
+Added authentication manager to handle user sessions and API keys.
+
+### Integration Points
+- Integrates with MCP server for request validation
+- Stores session data in encrypted local storage
+- Provides middleware for tool access control
+```
+
+### `docs/development-guide.md`
+**Purpose**: Development workflows and standards
+**When to Update**:
+- Adding new development processes
+- Changing coding standards
+- Adding new tools or scripts
+- Updating testing procedures
+
+**Example Updates**:
+```markdown
+## New Tool Development Process
+1. Create tool specification in `docs/tools/`
+2. Implement following the tool template
+3. Add comprehensive tests
+4. Update tool registry
+5. Document in user guide
+```
+
+### `docs/platform-compatibility.md`
+**Purpose**: Cross-platform considerations
+**When to Update**:
+- Adding support for new platforms
+- Discovering platform-specific issues
+- Updating installation procedures
+- Adding new GPU or hardware support
+
+**Example Updates**:
+```markdown
+## New Platform Support: FreeBSD
+Added experimental support for FreeBSD systems.
+
+### Installation
+```bash
+pkg install python3 ollama
+pip install ollama-mcp-server
+```
+
+### Known Issues
+- GPU detection not yet implemented
+- Some system commands may need adjustment
+```
+
+## Documentation Standards
+
+### Writing Style
+- Use clear, concise language
+- Include code examples where appropriate
+- Provide step-by-step instructions
+- Use consistent formatting and structure
+
+### Code Documentation
+- Document all public APIs
+- Include usage examples
+- Explain complex algorithms
+- Document error conditions and handling
+
+### Update Frequency
+- Update documentation with every significant change
+- Review and update documentation monthly
+- Keep documentation current with code changes
+- Remove outdated information promptly
+
+## Knowledge Preservation
+
+### Decision Documentation
+When making significant decisions, document:
+- The problem being solved
+- Alternatives considered
+- Rationale for the chosen solution
+- Implementation details
+- Future considerations
+
+### Pattern Documentation
+When you establish new patterns:
+- Document the pattern clearly
+- Provide examples of usage
+- Explain when to use the pattern
+- Document any variations or exceptions
+
+### Troubleshooting Documentation
+When solving complex problems:
+- Document the symptoms
+- Explain the root cause
+- Provide the solution steps
+- Include prevention measures
+
+## Documentation Maintenance
+
+### Regular Reviews
+- Monthly review of all documentation
+- Check for outdated information
+- Update version numbers and references
+- Verify all links and examples work
+
+### Version Control
+- All documentation changes go through version control
+- Use meaningful commit messages for documentation
+- Review documentation changes in pull requests
+- Maintain changelog for major documentation updates
+
+### Quality Assurance
+- Ensure all code examples work
+- Test all installation instructions
+- Verify all links are functional
+- Check for spelling and grammar errors
+
+## Integration with Development
+
+### Feature Development
+1. **Planning**: Review existing documentation for similar features
+2. **Implementation**: Follow documented patterns and standards
+3. **Testing**: Use documented testing procedures
+4. **Documentation**: Update relevant documentation files
+5. **Review**: Ensure documentation changes are included in code review
+
+### Bug Fixes
+1. **Investigation**: Check documentation for known issues
+2. **Resolution**: Follow documented troubleshooting procedures
+3. **Prevention**: Update documentation to prevent similar issues
+4. **Knowledge Sharing**: Document the problem and solution
+
+### Refactoring
+1. **Planning**: Review architecture documentation
+2. **Implementation**: Follow documented refactoring procedures
+3. **Testing**: Ensure all documented functionality still works
+4. **Documentation**: Update architecture and development guides
+
+## Documentation Templates
+
+### New Feature Documentation
+```markdown
+# Feature Name
+
+## Overview
+Brief description of the feature and its purpose.
+
+## Implementation
+Technical details of how the feature works.
+
+## Usage
+Examples of how to use the feature.
+
+## Configuration
+Any configuration options or requirements.
+
+## Troubleshooting
+Common issues and solutions.
+
+## Future Enhancements
+Planned improvements or extensions.
+```
+
+### Problem/Solution Documentation
+```markdown
+# Problem: [Brief Description]
+
+## Symptoms
+- What users experience
+- Error messages
+- System behavior
+
+## Root Cause
+Technical explanation of the underlying issue.
+
+## Solution
+Step-by-step solution with code examples.
+
+## Prevention
+How to avoid this problem in the future.
+
+## Related Issues
+Links to similar problems or solutions.
+```
+
+## Compliance and Quality
+
+### Documentation Review Checklist
+- [ ] Content is accurate and up-to-date
+- [ ] Examples are tested and working
+- [ ] Links are functional
+- [ ] Format is consistent
+- [ ] Language is clear and concise
+- [ ] Code examples follow project standards
+
+### Update Triggers
+You MUST update documentation when:
+- Adding new features or tools
+- Changing existing functionality
+- Fixing bugs that affect user experience
+- Updating dependencies or requirements
+- Changing installation or setup procedures
+- Modifying development workflows
+
+## Documentation as Code
+
+### Treat Documentation Like Code
+- Use version control for all documentation
+- Review documentation changes
+- Test documentation examples
+- Maintain documentation quality
+- Refactor documentation when needed
+
+### Automation
+- Use automated tools to check documentation quality
+- Generate documentation from code when possible
+- Automatically update version numbers
+- Check for broken links and outdated content
+
+This documentation framework ensures that knowledge is preserved and accessible, making the project more maintainable and easier for new contributors to understand.

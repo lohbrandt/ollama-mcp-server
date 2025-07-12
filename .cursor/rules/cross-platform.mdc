@@ -1,0 +1,420 @@
+---
+globs: ["**/*.py"]
+description: "Cross-platform compatibility requirements for Ollama MCP Server"
+---
+
+# Cross-Platform Compatibility Requirements
+
+You MUST ensure cross-platform compatibility for Windows, Linux, and macOS:
+
+## Platform Detection & Handling
+
+**Platform Detection:**
+- Use `platform.system()` to detect the operating system
+- Handle platform-specific differences explicitly
+- Provide fallback mechanisms for unsupported platforms
+- Test on multiple platforms when possible
+
+**Platform-Specific Code Structure:**
+```python
+import platform
+from pathlib import Path
+
+def get_platform_specific_config() -> Dict[str, Any]:
+    """Get platform-specific configuration."""
+    system = platform.system()
+    
+    if system == "Windows":
+        return {
+            "ollama_paths": [
+                Path.home() / "AppData" / "Local" / "Programs" / "Ollama",
+                Path("C:") / "Program Files" / "Ollama",
+                Path("C:") / "Program Files (x86)" / "Ollama"
+            ],
+            "config_dir": Path.home() / "AppData" / "Roaming" / "ollama",
+            "executable_name": "ollama.exe"
+        }
+    elif system == "Darwin":  # macOS
+        return {
+            "ollama_paths": [
+                Path("/usr/local/bin"),
+                Path("/opt/homebrew/bin"),
+                Path.home() / ".local" / "bin",
+                Path("/Applications/Ollama.app/Contents/MacOS")  # macOS app bundle
+            ],
+            "config_dir": Path.home() / ".ollama",
+            "executable_name": "ollama"
+        }
+    else:  # Linux and other Unix-like systems
+        return {
+            "ollama_paths": [
+                Path("/usr/local/bin"),
+                Path("/usr/bin"),
+                Path.home() / ".local" / "bin"
+            ],
+            "config_dir": Path.home() / ".ollama",
+            "executable_name": "ollama"
+        }
+```
+
+## File Path Handling
+
+**Path Operations:**
+- You MUST use `pathlib.Path` for all file operations
+- NEVER use string concatenation for paths
+- Use forward slashes in documentation but Path objects in code
+- Handle path separators automatically with pathlib
+
+**Examples:**
+```python
+# Good - Cross-platform path handling
+from pathlib import Path
+
+config_path = Path.home() / ".ollama" / "config.json"
+model_dir = Path.home() / ".ollama" / "models"
+
+# Read file cross-platform
+async with aiofiles.open(config_path, 'r') as f:
+    content = await f.read()
+
+# Bad - Platform-specific paths
+config_path = os.path.join(os.path.expanduser("~"), ".ollama", "config.json")  # Unix-specific
+config_path = "C:\\Users\\username\\.ollama\\config.json"  # Windows-specific
+```
+
+## Command Execution
+
+**System Commands:**
+- Use `subprocess` or `asyncio.create_subprocess_exec` for cross-platform commands
+- Handle different executable names (e.g., `.exe` on Windows)
+- Provide platform-specific command variations
+- Test command availability before execution
+
+**Cross-Platform Command Execution:**
+```python
+async def find_ollama_executable() -> Optional[str]:
+    """Find Ollama executable across platforms."""
+    config = get_platform_specific_config()
+    executable_name = config["executable_name"]
+    
+    # Check common paths
+    for path in config["ollama_paths"]:
+        executable_path = path / executable_name
+        if executable_path.exists() and executable_path.is_file():
+            return str(executable_path)
+    
+    # Check PATH environment variable
+    import shutil
+    path_executable = shutil.which("ollama")
+    if path_executable:
+        return path_executable
+    
+    return None
+
+async def run_ollama_command(args: List[str]) -> Dict[str, Any]:
+    """Run Ollama command cross-platform."""
+    executable = await find_ollama_executable()
+    if not executable:
+        return {
+            "success": False,
+            "error": "Ollama executable not found",
+            "troubleshooting": get_installation_instructions()
+        }
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            executable,
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        return {
+            "success": process.returncode == 0,
+            "stdout": stdout.decode(),
+            "stderr": stderr.decode(),
+            "returncode": process.returncode
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+```
+
+## GPU Detection
+
+**Cross-Platform GPU Detection:**
+- Handle different GPU vendors and detection methods
+- Provide fallback when GPU detection fails
+- Include platform-specific GPU information
+- Handle permission issues gracefully
+
+**GPU Detection Implementation:**
+```python
+async def detect_gpu_cross_platform() -> Dict[str, Any]:
+    """Detect GPU information across platforms."""
+    system = platform.system()
+    gpu_info = {
+        "detected": False,
+        "vendor": "unknown",
+        "model": "unknown",
+        "memory_gb": 0,
+        "platform": system
+    }
+    
+    try:
+        if system == "Windows":
+            gpu_info.update(await _detect_windows_gpu())
+        elif system == "Darwin":
+            gpu_info.update(await _detect_macos_gpu())
+        else:  # Linux
+            gpu_info.update(await _detect_linux_gpu())
+    except Exception as e:
+        logger.warning(f"GPU detection failed on {system}: {e}")
+        gpu_info["error"] = str(e)
+    
+    return gpu_info
+
+async def _detect_windows_gpu() -> Dict[str, Any]:
+    """Detect GPU on Windows using nvidia-smi or wmic."""
+    try:
+        # Try NVIDIA first
+        result = await run_command(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,nounits,noheader"])
+        if result["success"]:
+            lines = result["stdout"].strip().split('\n')
+            for line in lines:
+                if line.strip():
+                    parts = line.split(',')
+                    return {
+                        "detected": True,
+                        "vendor": "nvidia",
+                        "model": parts[0].strip(),
+                        "memory_gb": int(parts[1]) / 1024
+                    }
+        
+        # Try AMD using wmic
+        result = await run_command(["wmic", "path", "win32_VideoController", "get", "name"])
+        if result["success"]:
+            return _parse_windows_gpu_output(result["stdout"])
+            
+    except Exception as e:
+        logger.warning(f"Windows GPU detection failed: {e}")
+    
+    return {"detected": False}
+
+async def _detect_macos_gpu() -> Dict[str, Any]:
+    """Detect GPU on macOS using system_profiler."""
+    try:
+        result = await run_command(["system_profiler", "SPDisplaysDataType"])
+        if result["success"]:
+            output = result["stdout"]
+            
+            # Parse Apple Silicon GPU (M1/M2/M3)
+            if "Apple" in output and any(chip in output for chip in ["M1", "M2", "M3", "M4"]):
+                # Get unified memory info
+                memory_result = await run_command(["sysctl", "-n", "hw.memsize"])
+                if memory_result["success"]:
+                    total_memory_gb = int(memory_result["stdout"]) / (1024**3)
+                    return {
+                        "detected": True,
+                        "vendor": "apple",
+                        "model": "Apple Silicon",
+                        "memory_gb": round(total_memory_gb, 1),
+                        "architecture": "unified_memory"
+                    }
+            
+            # Parse discrete GPU (AMD/NVIDIA)
+            return _parse_macos_gpu_output(output)
+            
+    except Exception as e:
+        logger.warning(f"macOS GPU detection failed: {e}")
+    
+    return {"detected": False}
+
+async def _detect_linux_gpu() -> Dict[str, Any]:
+    """Detect GPU on Linux using various methods."""
+    try:
+        # Try nvidia-smi first
+        result = await run_command(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,nounits,noheader"])
+        if result["success"]:
+            return _parse_nvidia_output(result["stdout"])
+        
+        # Try lspci for other GPUs
+        result = await run_command(["lspci", "-v"])
+        if result["success"]:
+            return _parse_lspci_output(result["stdout"])
+            
+    except Exception as e:
+        logger.warning(f"Linux GPU detection failed: {e}")
+    
+    return {"detected": False}
+```
+
+## Environment Variables
+
+**Environment Variable Handling:**
+- Use consistent environment variable names across platforms
+- Provide platform-specific defaults
+- Handle missing environment variables gracefully
+- Document environment variable usage
+
+**Environment Variable Patterns:**
+```python
+def get_ollama_config() -> Dict[str, Any]:
+    """Get Ollama configuration with platform-specific defaults."""
+    system = platform.system()
+    
+    # Default values per platform
+    defaults = {
+        "Windows": {
+            "host": "http://localhost:11434",
+            "data_dir": str(Path.home() / "AppData" / "Roaming" / "ollama"),
+            "models_dir": str(Path.home() / "AppData" / "Roaming" / "ollama" / "models")
+        },
+        "Darwin": {
+            "host": "http://localhost:11434",
+            "data_dir": str(Path.home() / ".ollama"),
+            "models_dir": str(Path.home() / ".ollama" / "models")
+        },
+        "Linux": {
+            "host": "http://localhost:11434",
+            "data_dir": str(Path.home() / ".ollama"),
+            "models_dir": str(Path.home() / ".ollama" / "models")
+        }
+    }
+    
+    platform_defaults = defaults.get(system, defaults["Linux"])
+    
+    return {
+        "host": os.getenv("OLLAMA_HOST", platform_defaults["host"]),
+        "data_dir": os.getenv("OLLAMA_DATA_DIR", platform_defaults["data_dir"]),
+        "models_dir": os.getenv("OLLAMA_MODELS_DIR", platform_defaults["models_dir"])
+    }
+```
+
+## Error Message Localization
+
+**Platform-Specific Error Messages:**
+- Provide platform-specific troubleshooting steps
+- Include platform-specific installation instructions
+- Handle platform-specific permission issues
+- Use appropriate path separators in error messages
+
+**Error Message Examples:**
+```python
+def get_installation_instructions() -> Dict[str, Any]:
+    """Get platform-specific installation instructions."""
+    system = platform.system()
+    
+    if system == "Windows":
+        return {
+            "platform": "Windows",
+            "instructions": [
+                "Download Ollama from https://ollama.com/download",
+                "Run the installer as Administrator",
+                "Restart your terminal/command prompt",
+                "Verify installation: ollama --version"
+            ],
+            "common_issues": [
+                "Run as Administrator if installation fails",
+                "Check Windows Defender/antivirus settings",
+                "Ensure port 11434 is not blocked by firewall"
+            ]
+        }
+    elif system == "Darwin":
+        return {
+            "platform": "macOS",
+            "instructions": [
+                "Install via Homebrew: brew install ollama",
+                "Or download from https://ollama.com/download",
+                "For Apple Silicon: Use native ARM64 version",
+                "Verify installation: ollama --version"
+            ],
+            "common_issues": [
+                "Allow in System Preferences > Security & Privacy",
+                "Check Homebrew permissions: brew doctor",
+                "Ensure Xcode Command Line Tools are installed"
+            ]
+        }
+    else:
+        return {
+            "platform": "Linux",
+            "instructions": [
+                "Install via package manager or download script",
+                "curl -fsSL https://ollama.com/install.sh | sh",
+                "Or install from GitHub releases",
+                "Verify installation: ollama --version"
+            ],
+            "common_issues": [
+                "Check file permissions: chmod +x ollama",
+                "Ensure /usr/local/bin is in PATH",
+                "Install required libraries: sudo apt-get install libc6"
+            ]
+        }
+```
+
+## Testing Cross-Platform Code
+
+**Platform Testing Strategies:**
+- Test on multiple platforms when possible
+- Use GitHub Actions for cross-platform CI
+- Mock platform-specific behavior in tests
+- Test edge cases for each platform
+
+**Cross-Platform Test Examples:**
+```python
+import pytest
+from unittest.mock import patch, MagicMock
+
+class TestCrossPlatform:
+    @patch('platform.system')
+    def test_windows_config(self, mock_system):
+        mock_system.return_value = 'Windows'
+        config = get_platform_specific_config()
+        assert config['executable_name'] == 'ollama.exe'
+        assert any('AppData' in str(path) for path in config['ollama_paths'])
+    
+    @patch('platform.system')
+    def test_macos_config(self, mock_system):
+        mock_system.return_value = 'Darwin'
+        config = get_platform_specific_config()
+        assert config['executable_name'] == 'ollama'
+        assert any('homebrew' in str(path) for path in config['ollama_paths'])
+    
+    @patch('platform.system')
+    def test_linux_config(self, mock_system):
+        mock_system.return_value = 'Linux'
+        config = get_platform_specific_config()
+        assert config['executable_name'] == 'ollama'
+        assert Path('/usr/local/bin') in config['ollama_paths']
+```
+
+## Documentation Standards
+
+**Cross-Platform Documentation:**
+- Include examples for all supported platforms
+- Use platform-neutral language when possible
+- Provide platform-specific installation instructions
+- Include troubleshooting for each platform
+
+**Documentation Format:**
+```markdown
+# Installation Instructions
+
+## Windows
+1. Download the installer from https://ollama.com/download
+2. Run as Administrator
+3. Verify: `ollama --version`
+
+## macOS
+1. Install via Homebrew: `brew install ollama`
+2. Or download from https://ollama.com/download
+3. Verify: `ollama --version`
+
+## Linux
+1. Install via script: `curl -fsSL https://ollama.com/install.sh | sh`
+2. Or download from GitHub releases
+3. Verify: `ollama --version`

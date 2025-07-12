@@ -1,0 +1,85 @@
+---
+globs: ["**/*.py"]
+description: "Core Python standards and formatting for Ollama MCP Server"
+---
+
+# Python Standards & Code Quality
+
+You MUST follow these Python standards for the Ollama MCP Server project:
+
+## Code Formatting & Style
+
+**Black Formatting:**
+- You MUST use Black with line length 88 characters
+- You MUST format all Python code according to Black standards
+- NEVER exceed the 88-character line limit
+
+**Import Organization:**
+- You MUST use isort with Black profile for import sorting
+- Group imports: standard library, third-party, local imports
+- Use absolute imports for local modules: `from .client import OllamaClient`
+- NEVER use wildcard imports (`from module import *`)
+
+**Type Hints:**
+- You MUST add type hints to all function signatures
+- Use `from typing import` for complex types
+- Use `Optional[Type]` for nullable parameters
+- Use `Dict[str, Any]` for flexible dictionaries
+- Use `List[TextContent]` for MCP return types
+
+**Naming Conventions:**
+- Use snake_case for functions, variables, and module names
+- Use PascalCase for classes: `OllamaClient`, `ModelManager`
+- Use UPPER_SNAKE_CASE for constants: `OLLAMA_HOST`, `DEFAULT_TIMEOUT`
+- Use leading underscore for private methods: `_handle_internal_logic`
+
+## Code Quality Standards
+
+**Function Design:**
+- Keep functions focused and single-purpose
+- Use early returns to reduce nesting
+- Limit function complexity (max 15 lines of logic)
+- Use descriptive parameter names: `model_name` not `m`
+
+**Error Handling:**
+- Use specific exception types: `FileNotFoundError`, `ConnectionError`, `ValueError`
+- NEVER use bare `except:` clauses
+- Always include context in error messages
+- Use logging for debugging, not print statements
+
+**Documentation:**
+- You MUST add docstrings to all public functions and classes
+- Use triple quotes for docstrings
+- Include parameter descriptions for complex functions
+- Document return types and exceptions
+
+**Performance:**
+- Use async/await patterns consistently
+- Prefer list comprehensions over loops when appropriate
+- Use `pathlib.Path` for file operations
+- Use context managers (`with` statements) for resource management
+
+## Python Version Compatibility
+
+**Target Python 3.8+:**
+- NEVER use features from Python 3.9+ without fallbacks
+- Use `typing` module imports compatible with 3.8
+- Test compatibility with older Python versions when possible
+
+**Examples:**
+```python
+# Good
+async def process_model(model_name: str, timeout: float = 10.0) -> Dict[str, Any]:
+    """Process a model with specified timeout."""
+    try:
+        result = await client.get_model(model_name)
+        return {"success": True, "model": result}
+    except ConnectionError as e:
+        logger.error(f"Connection failed for {model_name}: {e}")
+        return {"success": False, "error": str(e)}
+
+# Bad
+def process_model(m, t=10):
+    result = client.get_model(m)
+    return result
+

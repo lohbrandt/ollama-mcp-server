@@ -1,0 +1,273 @@
+---
+globs: ["**/*.py"]
+description: "MCP protocol standards and best practices for Ollama MCP Server"
+---
+
+# MCP Protocol Standards & Best Practices
+
+You MUST follow these MCP protocol standards for the Ollama MCP Server:
+
+## MCP Server Architecture
+
+**Server Registration:**
+- Use `Server("ollama-mcp-server")` for consistent server identification
+- Register handlers using the `@server.decorator` pattern
+- NEVER register handlers outside of the server class
+
+**Handler Registration Pattern:**
+```python
+@self.server.list_tools()
+async def list_tools() -> List[Tool]:
+    """Return available tools list."""
+    return get_all_tools()
+
+@self.server.call_tool()
+async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+    """Handle tool calls with proper routing."""
+    return await route_tool_call(name, arguments)
+```
+
+## Tool Definition Standards
+
+**Tool Schema Requirements:**
+- You MUST define complete JSON schemas for all tools
+- Include descriptions for all parameters
+- Mark required parameters correctly
+- Use appropriate data types (`string`, `number`, `boolean`, `object`, `array`)
+
+**Example Tool Definition:**
+```python
+Tool(
+    name="download_model",
+    description="Download an Ollama model with progress tracking",
+    inputSchema={
+        "type": "object",
+        "properties": {
+            "model_name": {
+                "type": "string",
+                "description": "Name of the model to download (e.g., 'llama3.2', 'qwen2.5')"
+            },
+            "force": {
+                "type": "boolean",
+                "description": "Force re-download if model exists (default: false)"
+            }
+        },
+        "required": ["model_name"]
+    }
+)
+```
+
+## Response Format Standards
+
+**TextContent Responses:**
+- You MUST return `List[TextContent]` from all tool handlers
+- Use JSON format for structured data responses
+- Include proper indentation (2 spaces) for readability
+- NEVER return raw strings or other types
+
+**Standard Response Structure:**
+```python
+def create_success_response(data: Any, message: str = None) -> List[TextContent]:
+    """Create standardized success response."""
+    response = {
+        "success": True,
+        "data": data
+    }
+    if message:
+        response["message"] = message
+    
+    return [TextContent(
+        type="text",
+        text=json.dumps(response, indent=2)
+    )]
+
+def create_error_response(error: str, troubleshooting: str = None) -> List[TextContent]:
+    """Create standardized error response."""
+    response = {
+        "success": False,
+        "error": error
+    }
+    if troubleshooting:
+        response["troubleshooting"] = troubleshooting
+    
+    return [TextContent(
+        type="text",
+        text=json.dumps(response, indent=2)
+    )]
+```
+
+## Tool Handler Best Practices
+
+**Parameter Validation:**
+- Validate all input parameters before processing
+- Provide clear error messages for invalid inputs
+- Use default values where appropriate
+- Handle missing required parameters gracefully
+
+**Example Parameter Validation:**
+```python
+async def handle_model_chat(arguments: Dict[str, Any]) -> List[TextContent]:
+    """Handle model chat with proper validation."""
+    # Validate required parameters
+    message = arguments.get("message", "").strip()
+    if not message:
+        return create_error_response(
+            "Message parameter is required",
+            "Provide a message to send to the model"
+        )
+    
+    # Validate optional parameters
+    model = arguments.get("model", "")
+    temperature = arguments.get("temperature", 0.7)
+    
+    if not isinstance(temperature, (int, float)) or not (0.0 <= temperature <= 1.0):
+        return create_error_response(
+            "Temperature must be a number between 0.0 and 1.0",
+            f"Provided temperature: {temperature}"
+        )
+    
+    # Process with validated parameters
+    try:
+        result = await process_chat(message, model, temperature)
+        return create_success_response(result)
+    except Exception as e:
+        return create_error_response(f"Chat failed: {e}")
+```
+
+## Progress Tracking Standards
+
+**Long-Running Operations:**
+- Use job tracking for operations that take more than 5 seconds
+- Provide progress updates with meaningful information
+- Include ETA estimates when possible
+- Allow cancellation of long-running operations
+
+**Progress Response Format:**
+```python
+def create_progress_response(
+    job_id: str,
+    status: str,
+    progress: float,
+    message: str,
+    eta: Optional[str] = None
+) -> List[TextContent]:
+    """Create standardized progress response."""
+    response = {
+        "job_id": job_id,
+        "status": status,
+        "progress": progress,
+        "message": message
+    }
+    if eta:
+        response["eta"] = eta
+    
+    return [TextContent(
+        type="text",
+        text=json.dumps(response, indent=2)
+    )]
+```
+
+## Error Handling in MCP Context
+
+**Tool Error Responses:**
+- NEVER let exceptions bubble up to the MCP framework
+- Always return valid `List[TextContent]` responses
+- Include diagnostic information in error responses
+- Log errors appropriately for debugging
+
+**Exception Handling Pattern:**
+```python
+async def safe_tool_handler(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+    """Safe tool handler with comprehensive error handling."""
+    try:
+        # Input validation
+        if not arguments:
+            return create_error_response("No arguments provided")
+        
+        # Tool execution
+        result = await execute_tool(name, arguments)
+        return create_success_response(result)
+        
+    except ValueError as e:
+        return create_error_response(f"Invalid input: {e}")
+    except ConnectionError as e:
+        return create_error_response(f"Connection failed: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error in {name}: {e}")
+        return create_error_response(
+            f"Unexpected error occurred",
+            "Check system logs for details"
+        )
+```
+
+## MCP Client Integration
+
+**Client Compatibility:**
+- Test with Claude Desktop configuration
+- Ensure proper stdio server setup
+- Handle client disconnections gracefully
+- Provide helpful configuration examples
+
+**Server Initialization:**
+```python
+async def run_mcp_server():
+    """Run MCP server with proper initialization."""
+    try:
+        logger.info("Starting Ollama MCP Server...")
+        
+        # Initialize server
+        server = OllamaMCPServer()
+        
+        # Start stdio server
+        async with stdio_server() as (read_stream, write_stream):
+            await server.run(
+                read_stream,
+                write_stream,
+                server.create_initialization_options()
+            )
+    except Exception as e:
+        logger.error(f"MCP server failed to start: {e}")
+        raise
+```
+
+## Tool Categorization
+
+**Tool Organization:**
+- Group related tools logically (base_tools, advanced_tools)
+- Use consistent naming conventions across tools
+- Provide clear tool descriptions for users
+- Implement proper tool routing
+
+**Tool Routing Pattern:**
+```python
+async def route_tool_call(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+    """Route tool calls to appropriate handlers."""
+    # Define tool categories
+    base_tools = {"list_local_models", "local_llm_chat", "ollama_health_check"}
+    advanced_tools = {"download_model", "suggest_models", "start_ollama_server"}
+    
+    try:
+        if name in base_tools:
+            return await handle_base_tool(name, arguments)
+        elif name in advanced_tools:
+            return await handle_advanced_tool(name, arguments)
+        else:
+            return create_error_response(f"Unknown tool: {name}")
+    except Exception as e:
+        logger.error(f"Tool routing failed for {name}: {e}")
+        return create_error_response(f"Tool execution failed: {e}")
+```
+
+## Documentation Standards
+
+**Tool Documentation:**
+- Include usage examples in tool descriptions
+- Document expected response formats
+- Provide troubleshooting information
+- Include parameter examples
+
+**Response Documentation:**
+- Document all response fields
+- Include example success and error responses
+- Explain progress tracking formats
+- Document any special behaviors

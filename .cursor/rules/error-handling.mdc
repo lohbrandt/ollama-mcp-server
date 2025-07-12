@@ -1,0 +1,257 @@
+---
+globs: ["**/*.py"]
+description: "Professional error handling patterns for Ollama MCP Server"
+---
+
+# Professional Error Handling Patterns
+
+You MUST implement comprehensive error handling following these patterns:
+
+## Error Response Standards
+
+**MCP Tool Error Responses:**
+- You MUST return `List[TextContent]` for all tool handlers
+- Include structured error information in JSON format
+- Provide actionable troubleshooting steps
+- NEVER crash the server on tool errors
+
+**Standard Error Response Format:**
+```python
+def error_response(error_message: str, troubleshooting: str = None) -> List[TextContent]:
+    """Generate standardized error response."""
+    response = {
+        "success": False,
+        "error": error_message,
+        "troubleshooting": troubleshooting or "Check system logs for details"
+    }
+    return [TextContent(type="text", text=json.dumps(response, indent=2))]
+```
+
+## Exception Handling Hierarchy
+
+**Specific Exception Types:**
+- Use `ConnectionError` for network/Ollama connection issues
+- Use `FileNotFoundError` for missing files/models
+- Use `ValueError` for invalid parameter values
+- Use `TimeoutError` for operation timeouts
+- Use `subprocess.CalledProcessError` for system command failures
+
+**Exception Handling Pattern:**
+```python
+async def robust_operation(param: str) -> Dict[str, Any]:
+    """Example of proper exception handling."""
+    try:
+        # Main operation
+        result = await perform_operation(param)
+        return {"success": True, "result": result}
+        
+    except ConnectionError as e:
+        logger.error(f"Connection failed: {e}")
+        return {
+            "success": False,
+            "error": "Cannot connect to Ollama server",
+            "troubleshooting": {
+                "check_server": "Verify Ollama is running: 'ollama serve'",
+                "check_port": "Ensure port 11434 is accessible",
+                "restart_ollama": "Try restarting Ollama service"
+            }
+        }
+    except FileNotFoundError as e:
+        logger.error(f"Model not found: {e}")
+        return {
+            "success": False,
+            "error": "Requested model not found",
+            "troubleshooting": {
+                "list_models": "Check available models: 'ollama list'",
+                "download_model": f"Download model: 'ollama pull {param}'"
+            }
+        }
+    except ValueError as e:
+        logger.error(f"Invalid parameter: {e}")
+        return {
+            "success": False,
+            "error": "Invalid parameter provided",
+            "troubleshooting": f"Check parameter format: {str(e)}"
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error in robust_operation: {e}")
+        return {
+            "success": False,
+            "error": "Unexpected error occurred",
+            "troubleshooting": "Check system logs for details"
+        }
+```
+
+## Logging Standards
+
+**Logging Levels:**
+- Use `logger.debug()` for detailed debugging information
+- Use `logger.info()` for normal operations and status
+- Use `logger.warning()` for recoverable issues
+- Use `logger.error()` for errors that affect functionality
+- Use `logger.critical()` for fatal errors
+
+**Logging Context:**
+- Include operation context in log messages
+- Log function entry/exit for complex operations
+- Include relevant parameters in error logs
+- Use structured logging for better parsing
+
+**Example Logging Pattern:**
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+async def process_model_request(model_name: str, user_message: str) -> Dict[str, Any]:
+    """Process model request with proper logging."""
+    logger.info(f"Processing request for model: {model_name}")
+    
+    try:
+        # Validate inputs
+        if not model_name:
+            logger.warning("Model name not provided, using default")
+            model_name = await get_default_model()
+        
+        logger.debug(f"Sending message to {model_name}: {user_message[:50]}...")
+        
+        # Process request
+        result = await client.chat(model_name, user_message)
+        
+        logger.info(f"Successfully processed request for {model_name}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to process request for {model_name}: {e}")
+        raise
+```
+
+## Resource Cleanup
+
+**Context Managers:**
+- Use `try/finally` blocks for cleanup when context managers aren't available
+- Always close HTTP clients, files, and subprocess handles
+- Implement proper async context managers for async resources
+
+**Example Cleanup Pattern:**
+```python
+async def download_with_cleanup(url: str, file_path: str) -> bool:
+    """Download file with proper cleanup."""
+    client = None
+    file_handle = None
+    
+    try:
+        client = httpx.AsyncClient()
+        file_handle = await aiofiles.open(file_path, 'wb')
+        
+        async with client.stream('GET', url) as response:
+            async for chunk in response.aiter_bytes():
+                await file_handle.write(chunk)
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Download failed: {e}")
+        # Clean up partial file
+        if file_path and Path(file_path).exists():
+            Path(file_path).unlink()
+        return False
+        
+    finally:
+        if file_handle:
+            await file_handle.close()
+        if client:
+            await client.aclose()
+```
+
+## Graceful Degradation
+
+**Fallback Mechanisms:**
+- Provide default values when optional features fail
+- Continue operation when non-critical components fail
+- Offer alternative approaches when primary methods fail
+
+**Example Graceful Degradation:**
+```python
+async def get_system_info() -> Dict[str, Any]:
+    """Get system info with graceful degradation."""
+    system_info = {
+        "cpu_count": "unknown",
+        "memory_gb": "unknown",
+        "gpu_info": "detection_failed",
+        "platform": platform.system()
+    }
+    
+    # Try CPU detection
+    try:
+        system_info["cpu_count"] = psutil.cpu_count()
+    except Exception as e:
+        logger.warning(f"CPU detection failed: {e}")
+    
+    # Try memory detection
+    try:
+        memory_bytes = psutil.virtual_memory().total
+        system_info["memory_gb"] = round(memory_bytes / (1024**3), 1)
+    except Exception as e:
+        logger.warning(f"Memory detection failed: {e}")
+    
+    # Try GPU detection (non-critical)
+    try:
+        gpu_info = await detect_gpu_info()
+        system_info["gpu_info"] = gpu_info
+    except Exception as e:
+        logger.warning(f"GPU detection failed: {e}")
+        system_info["gpu_info"] = {"error": "GPU detection unavailable"}
+    
+    return system_info
+```
+
+## User-Friendly Error Messages
+
+**Error Message Guidelines:**
+- Use clear, non-technical language when possible
+- Provide specific steps to resolve the issue
+- Include context about what was being attempted
+- Offer alternative solutions when available
+
+**Example User-Friendly Errors:**
+```python
+# Good user-friendly error
+{
+    "success": False,
+    "error": "Cannot connect to Ollama server",
+    "what_happened": "The tool tried to connect to Ollama but couldn't reach it",
+    "troubleshooting": {
+        "step_1": "Check if Ollama is running: Open terminal and run 'ollama serve'",
+        "step_2": "Verify Ollama installation: Run 'ollama --version'",
+        "step_3": "Check firewall settings: Ensure port 11434 is not blocked"
+    },
+    "next_steps": "Try using 'ollama_health_check' tool for detailed diagnostics"
+}
+
+# Bad generic error
+{
+    "error": "HTTP 500 Internal Server Error"
+}
+```
+
+## Cross-Platform Error Handling
+
+**Platform-Specific Errors:**
+- Handle Windows/Linux/macOS differences in error messages
+- Use appropriate file path separators
+- Account for different system command outputs
+- Provide platform-specific troubleshooting steps
+
+**Example Cross-Platform Error:**
+```python
+def get_platform_specific_error(operation: str, error: Exception) -> str:
+    """Generate platform-specific error message."""
+    platform_name = platform.system()
+    
+    if platform_name == "Windows":
+        return f"{operation} failed on Windows: {error}. Try running as Administrator."
+    elif platform_name == "Darwin":
+        return f"{operation} failed on macOS: {error}. Check System Preferences > Security."
+    else:
+        return f"{operation} failed on Linux: {error}. Check permissions with 'ls -la'."
