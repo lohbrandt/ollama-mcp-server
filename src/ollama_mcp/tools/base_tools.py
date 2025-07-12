@@ -28,7 +28,7 @@ from pathlib import Path
 current_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(current_dir))
 
-from client import OllamaClient
+from ..client import OllamaClient
 
 
 def get_base_tools() -> List[Tool]:

@@ -1,0 +1,83 @@
+#!/bin/bash
+
+SERVICE_NAME="Ollama MCP Server"
+PID_FILE="/tmp/ollama_mcp_server.pid"
+LOG_FILE="/tmp/ollama_mcp_server.log"
+SERVER_DIR="/Volumes/dev/repositories/serve/ollama-mcp-server"
+
+start_server() {
+    if [ -f "$PID_FILE" ] && kill -0 $(cat $PID_FILE) 2>/dev/null; then
+        echo "$SERVICE_NAME is already running with PID $(cat $PID_FILE)"
+        return 1
+    fi
+    
+    echo "Starting $SERVICE_NAME..."
+    cd "$SERVER_DIR"
+    nohup /Users/lohbrandt/.asdf/installs/python/3.13.5t/bin/ollama-mcp-server > "$LOG_FILE" 2>&1 &
+    echo $! > "$PID_FILE"
+    echo "$SERVICE_NAME started with PID $(cat $PID_FILE)"
+    echo "Logs available at: $LOG_FILE"
+}
+
+stop_server() {
+    echo "Stopping $SERVICE_NAME..."
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat $PID_FILE)
+        if kill -0 $PID 2>/dev/null; then
+            kill $PID && rm -f "$PID_FILE"
+            echo "$SERVICE_NAME stopped."
+        else
+            echo "$SERVICE_NAME process not found, cleaning up PID file."
+            rm -f "$PID_FILE"
+        fi
+    else
+        echo "$SERVICE_NAME is not running."
+    fi
+}
+
+status_server() {
+    if [ -f "$PID_FILE" ] && kill -0 $(cat $PID_FILE) 2>/dev/null; then
+        echo "$SERVICE_NAME is running with PID $(cat $PID_FILE)"
+        return 0
+    else
+        echo "$SERVICE_NAME is not running."
+        return 1
+    fi
+}
+
+show_logs() {
+    if [ -f "$LOG_FILE" ]; then
+        tail -f "$LOG_FILE"
+    else
+        echo "No log file found at $LOG_FILE"
+    fi
+}
+
+case "$1" in
+    start)
+        start_server
+        ;;
+    stop)
+        stop_server
+        ;;
+    restart)
+        stop_server
+        sleep 2
+        start_server
+        ;;
+    status)
+        status_server
+        ;;
+    logs)
+        show_logs
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|logs}"
+        echo "  start   - Start the Ollama MCP Server"
+        echo "  stop    - Stop the Ollama MCP Server"
+        echo "  restart - Restart the Ollama MCP Server"
+        echo "  status  - Show server status"
+        echo "  logs    - Show server logs (tail -f)"
+        exit 1
+        ;;
+esac

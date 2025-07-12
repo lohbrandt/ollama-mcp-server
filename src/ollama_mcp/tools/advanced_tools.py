@@ -26,9 +26,9 @@ from pathlib import Path
 current_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(current_dir))
 
-from client import OllamaClient
-from job_manager import get_job_manager
-from model_manager import ModelManager
+from ..client import OllamaClient
+from ..job_manager import get_job_manager
+from ..model_manager import ModelManager
 
 
 def get_advanced_tools() -> List[Tool]:

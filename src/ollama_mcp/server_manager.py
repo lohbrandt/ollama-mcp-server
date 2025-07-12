@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from config import ServerConfig, get_config
+from .config import ServerConfig, get_config
 
 logger = logging.getLogger(__name__)
 

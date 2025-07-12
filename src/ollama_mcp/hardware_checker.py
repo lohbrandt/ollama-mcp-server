@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from enum import Enum
 
-from config import HardwareConfig, get_config
+from .config import HardwareConfig, get_config
 
 logger = logging.getLogger(__name__)
 

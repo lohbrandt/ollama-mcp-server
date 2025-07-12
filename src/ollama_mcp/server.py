@@ -25,17 +25,17 @@ from mcp.types import Tool, TextContent
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
-from client import OllamaClient
-from config import get_config
-from tools import get_base_tools, handle_base_tool
-from tools.advanced_tools import get_advanced_tools, handle_advanced_tool
+from .client import OllamaClient
+from .config import get_config
+from .tools import get_base_tools, handle_base_tool
+from .tools.advanced_tools import get_advanced_tools, handle_advanced_tool
 
 # Force reload modules to apply code changes
 import importlib
-import model_manager
-import tools.advanced_tools
+from . import model_manager
+from .tools import advanced_tools
 importlib.reload(model_manager)
-importlib.reload(tools.advanced_tools)
+importlib.reload(advanced_tools)
 
 logger = logging.getLogger(__name__)
 
