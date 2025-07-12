@@ -79,7 +79,7 @@ brew services list | grep ollama
 ## Directory Structure
 
 ```
-/Volumes/dev/repositories/serve/ollama-mcp-server/
+/path/to/ollama-mcp-server/
 ├── ollama-mcp          # Manual service management script
 ├── manage-service      # Automatic service management script
 ├── SETUP.md           # This file

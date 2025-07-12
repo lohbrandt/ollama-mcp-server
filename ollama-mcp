@@ -3,17 +3,30 @@
 SERVICE_NAME="Ollama MCP Server"
 PID_FILE="/tmp/ollama_mcp_server.pid"
 LOG_FILE="/tmp/ollama_mcp_server.log"
-SERVER_DIR="/Volumes/dev/repositories/serve/ollama-mcp-server"
+SERVER_DIR="${OLLAMA_MCP_SERVER_DIR:-$(dirname "$(readlink -f "$0")")}"
 
 start_server() {
-    if [ -f "$PID_FILE" ] && kill -0 $(cat $PID_FILE) 2>/dev/null; then
-        echo "$SERVICE_NAME is already running with PID $(cat $PID_FILE)"
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        echo "$SERVICE_NAME is already running with PID $(cat "$PID_FILE")"
         return 1
     fi
     
+    # Validate required paths
+    if [ ! -d "$SERVER_DIR" ]; then
+        echo "Error: Server directory $SERVER_DIR does not exist"
+        return 1
+    fi
+
     echo "Starting $SERVICE_NAME..."
     cd "$SERVER_DIR"
-    nohup /Users/lohbrandt/.asdf/installs/python/3.13.5t/bin/ollama-mcp-server > "$LOG_FILE" 2>&1 &
+    # Find ollama-mcp-server executable
+    EXECUTABLE=$(command -v ollama-mcp-server || echo "$SERVER_DIR/src/ollama_mcp/server.py")
+    if [ ! -x "$EXECUTABLE" ] && [ ! -f "$EXECUTABLE" ]; then
+        echo "Error: ollama-mcp-server executable not found"
+        return 1
+    fi
+    fi
+    nohup "$EXECUTABLE" > "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     echo "$SERVICE_NAME started with PID $(cat $PID_FILE)"
     echo "Logs available at: $LOG_FILE"
@@ -36,8 +49,8 @@ stop_server() {
 }
 
 status_server() {
-    if [ -f "$PID_FILE" ] && kill -0 $(cat $PID_FILE) 2>/dev/null; then
-        echo "$SERVICE_NAME is running with PID $(cat $PID_FILE)"
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        echo "$SERVICE_NAME is running with PID $(cat "$PID_FILE")"
         return 0
     else
         echo "$SERVICE_NAME is not running."
