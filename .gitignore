@@ -1,2 +1,7 @@
 # log files
 *.log
+
+# cache
+*.cache
+.mypy_cache/
+*/__pycache__/
