@@ -1,0 +1,95 @@
+#!/bin/bash
+
+SERVICE_LABEL="com.ollama.mcpserver"
+PLIST_PATH="$HOME/Library/LaunchAgents/$SERVICE_LABEL.plist"
+
+load_service() {
+    echo "Loading Ollama MCP Server service..."
+    launchctl load "$PLIST_PATH"
+    echo "Service loaded and will start automatically on login"
+}
+
+unload_service() {
+    echo "Unloading Ollama MCP Server service..."
+    launchctl unload "$PLIST_PATH"
+    echo "Service unloaded"
+}
+
+start_service() {
+    echo "Starting Ollama MCP Server service..."
+    launchctl start "$SERVICE_LABEL"
+    echo "Service started"
+}
+
+stop_service() {
+    echo "Stopping Ollama MCP Server service..."
+    launchctl stop "$SERVICE_LABEL"
+    echo "Service stopped"
+}
+
+status_service() {
+    echo "Checking Ollama MCP Server service status..."
+    if launchctl list | grep -q "$SERVICE_LABEL"; then
+        echo "Service is loaded and running"
+        launchctl list | grep "$SERVICE_LABEL"
+    else
+        echo "Service is not loaded"
+    fi
+}
+
+show_logs() {
+    echo "Showing Ollama MCP Server logs..."
+    echo "=== Standard Output ==="
+    tail -f /tmp/ollama_mcp_server.log &
+    echo "=== Standard Error ==="
+    tail -f /tmp/ollama_mcp_server_error.log &
+    wait
+}
+
+case "$1" in
+    load)
+        load_service
+        ;;
+    unload)
+        unload_service
+        ;;
+    start)
+        start_service
+        ;;
+    stop)
+        stop_service
+        ;;
+    restart)
+        stop_service
+        sleep 2
+        start_service
+        ;;
+    status)
+        status_service
+        ;;
+    logs)
+        show_logs
+        ;;
+    install)
+        echo "Installing Ollama MCP Server as a system service..."
+        load_service
+        start_service
+        status_service
+        ;;
+    *)
+        echo "Usage: $0 {load|unload|start|stop|restart|status|logs|install}"
+        echo ""
+        echo "  load    - Load the service (auto-start on login)"
+        echo "  unload  - Unload the service"
+        echo "  start   - Start the service"
+        echo "  stop    - Stop the service"
+        echo "  restart - Restart the service"
+        echo "  status  - Show service status"
+        echo "  logs    - Show service logs (tail -f)"
+        echo "  install - Load and start the service"
+        echo ""
+        echo "Manual service management:"
+        echo "  ./ollama-mcp {start|stop|restart|status|logs}"
+        exit 1
+        ;;
+esac

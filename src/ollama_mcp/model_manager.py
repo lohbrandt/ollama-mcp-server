@@ -16,8 +16,8 @@ import time
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass
 
-from client import OllamaClient, ModelInfo
-from job_manager import get_job_manager, JobManager
+from .client import OllamaClient, ModelInfo
+from .job_manager import get_job_manager, JobManager
 
 logger = logging.getLogger(__name__)
 
