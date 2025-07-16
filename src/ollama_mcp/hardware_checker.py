@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from enum import Enum
 
-from .config import HardwareConfig, get_config
+from .config import OllamaConfig, get_config
 
 logger = logging.getLogger(__name__)
 
@@ -169,14 +169,14 @@ class CrossPlatformGPUDetector:
     Detects GPUs from NVIDIA, AMD, Intel, and Apple across different platforms.
     """
     
-    def __init__(self, config: Optional[HardwareConfig] = None):
+    def __init__(self, config: Optional[OllamaConfig] = None):
         """
         Initialize GPU detector
         
         Args:
             config: Hardware configuration, uses global config if None
         """
-        self.config = config or get_config().hardware
+        self.config = config or get_config()
         self._detection_cache: Optional[List[GPUInfo]] = None
         
         logger.debug("Initialized CrossPlatformGPUDetector")
@@ -188,7 +188,7 @@ class CrossPlatformGPUDetector:
         Returns:
             List of detected GPUs
         """
-        if not self.config.enable_gpu_detection:
+        if not getattr(self.config, 'enable_gpu_detection', True):
             logger.info("GPU detection disabled in configuration")
             return [self._create_cpu_fallback()]
         
@@ -463,14 +463,14 @@ class HardwareChecker:
     for different Ollama models across multiple platforms and GPU vendors.
     """
     
-    def __init__(self, config: Optional[HardwareConfig] = None):
+    def __init__(self, config: Optional[OllamaConfig] = None):
         """
         Initialize hardware checker
         
         Args:
             config: Hardware configuration, uses global config if None
         """
-        self.config = config or get_config().hardware
+        self.config = config or get_config()
         self.gpu_detector = CrossPlatformGPUDetector(self.config)
         
         logger.debug("Initialized HardwareChecker")
@@ -696,7 +696,7 @@ class HardwareChecker:
             best_gpu = max(system_info["gpu_info"], key=lambda g: g["total_memory_gb"])
             gpu_memory = best_gpu["total_memory_gb"]
             
-            if estimated_vram <= gpu_memory * self.config.gpu_memory_fraction:
+            if estimated_vram <= gpu_memory * getattr(self.config, 'gpu_memory_fraction', 0.8):
                 reasons.append(f"GPU acceleration available ({best_gpu['vendor']} {best_gpu['name']})")
                 if performance_tier == "excellent":
                     performance_tier = "excellent"
@@ -706,7 +706,7 @@ class HardwareChecker:
                 if performance_tier in ["excellent", "good"]:
                     performance_tier = "good"
         else:
-            if self.config.enable_cpu_fallback:
+            if getattr(self.config, 'enable_cpu_fallback', True):
                 warnings.append("No GPU detected - CPU-only processing")
                 reasons.append("CPU processing supported")
                 if performance_tier == "excellent":
@@ -729,8 +729,8 @@ class HardwareChecker:
                 performance_tier = "moderate"
         
         # Memory threshold check
-        if available_ram < self.config.memory_threshold_gb:
-            warnings.append(f"System RAM below recommended threshold ({self.config.memory_threshold_gb}GB)")
+        if available_ram < getattr(self.config, 'memory_threshold_gb', 4.0):
+            warnings.append(f"System RAM below recommended threshold ({getattr(self.config, 'memory_threshold_gb', 4.0)}GB)")
             recommendations.append("Close unnecessary applications or upgrade RAM")
         
         return ModelCompatibility(

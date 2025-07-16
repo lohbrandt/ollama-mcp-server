@@ -1,0 +1,382 @@
+---
+globs: ["**/*.py"]
+description: "Ollama integration patterns and best practices for Ollama MCP Server"
+---
+
+# Ollama Integration Patterns & Best Practices
+
+You MUST follow these patterns for Ollama integration in the MCP Server:
+
+## Ollama Client Standards
+
+**Client Initialization:**
+- Use resilient client initialization that works even when Ollama is offline
+- Include proper timeout configuration (5s for health checks, 30s for downloads)
+- Handle connection errors gracefully without crashing the server
+- Support custom Ollama host configuration
+
+**Example Client Pattern:**
+```python
+class OllamaClient:
+    """Resilient Ollama client with professional error handling."""
+    
+    def __init__(self, host: str = "http://localhost:11434", timeout: float = 10.0):
+        self.host = host.rstrip('/')
+        self.timeout = timeout
+        self.session = None
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Check Ollama server health with detailed diagnostics."""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{self.host}/api/tags")
+                response.raise_for_status()
+                
+                data = response.json()
+                return {
+                    "healthy": True,
+                    "host": self.host,
+                    "models_count": len(data.get("models", [])),
+                    "message": "Ollama server is running"
+                }
+        except Exception as e:
+            return {
+                "healthy": False,
+                "host": self.host,
+                "error": str(e),
+                "troubleshooting": self._get_health_troubleshooting()
+            }
+```
+
+## API Endpoint Standards
+
+**Ollama API Endpoints:**
+- Use `/api/tags` for model listing
+- Use `/api/chat` for chat completions
+- Use `/api/pull` for model downloads
+- Use `/api/delete` for model removal
+- Always include proper error handling for each endpoint
+
+**HTTP Request Patterns:**
+```python
+async def make_ollama_request(
+    self,
+    endpoint: str,
+    method: str = "GET",
+    data: Optional[Dict[str, Any]] = None,
+    timeout: float = None
+) -> Dict[str, Any]:
+    """Make request to Ollama API with proper error handling."""
+    timeout = timeout or self.timeout
+    url = f"{self.host}/api/{endpoint}"
+    
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            if method == "GET":
+                response = await client.get(url)
+            elif method == "POST":
+                response = await client.post(url, json=data)
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+            
+            response.raise_for_status()
+            return response.json()
+            
+    except httpx.TimeoutException:
+        raise ConnectionError(f"Timeout connecting to Ollama: {endpoint}")
+    except httpx.HTTPStatusError as e:
+        raise ConnectionError(f"Ollama API error: {e.response.status_code}")
+    except Exception as e:
+        raise ConnectionError(f"Failed to connect to Ollama: {e}")
+```
+
+## Model Management Patterns
+
+**Model Listing:**
+- Parse model information consistently
+- Include human-readable size formatting
+- Handle empty model lists gracefully
+- Provide model metadata when available
+
+**Model Information Structure:**
+```python
+@dataclass
+class ModelInfo:
+    """Standardized model information."""
+    name: str
+    size: int
+    size_human: str
+    modified: str
+    digest: str = ""
+    
+    @classmethod
+    def from_ollama_response(cls, model_data: Dict[str, Any]) -> "ModelInfo":
+        """Create ModelInfo from Ollama API response."""
+        return cls(
+            name=model_data.get("name", ""),
+            size=model_data.get("size", 0),
+            size_human=format_bytes(model_data.get("size", 0)),
+            modified=model_data.get("modified_at", ""),
+            digest=model_data.get("digest", "")
+        )
+```
+
+**Model Download Patterns:**
+```python
+async def download_model(
+    self,
+    model_name: str,
+    progress_callback: Optional[Callable] = None
+) -> Dict[str, Any]:
+    """Download model with progress tracking."""
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            async with client.stream(
+                "POST",
+                f"{self.host}/api/pull",
+                json={"name": model_name}
+            ) as response:
+                response.raise_for_status()
+                
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        progress_data = json.loads(line)
+                        
+                        if progress_callback:
+                            await progress_callback(progress_data)
+                        
+                        # Handle completion
+                        if progress_data.get("status") == "success":
+                            return {
+                                "success": True,
+                                "model": model_name,
+                                "message": "Model downloaded successfully"
+                            }
+                
+        return {"success": True, "model": model_name}
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "model": model_name
+        }
+```
+
+## Chat Integration Patterns
+
+**Chat Request Formatting:**
+- Use consistent message formatting
+- Handle system prompts appropriately
+- Include proper temperature and parameter settings
+- Stream responses when possible
+
+**Chat Implementation:**
+```python
+async def chat(
+    self,
+    model: str,
+    message: str,
+    temperature: float = 0.7,
+    system_prompt: Optional[str] = None
+) -> Dict[str, Any]:
+    """Chat with Ollama model."""
+    try:
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": message})
+        
+        payload = {
+            "model": model,
+            "messages": messages,
+            "options": {
+                "temperature": temperature
+            }
+        }
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{self.host}/api/chat",
+                json=payload
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return {
+                "success": True,
+                "response": result["message"]["content"],
+                "model": model,
+                "metadata": {
+                    "total_duration": result.get("total_duration", 0),
+                    "load_duration": result.get("load_duration", 0)
+                }
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "model": model
+        }
+```
+
+## Error Handling for Ollama Operations
+
+**Connection Error Handling:**
+- Distinguish between server offline and network issues
+- Provide specific troubleshooting steps for each error type
+- Include retry logic for transient failures
+- Handle authentication errors if applicable
+
+**Error Classification:**
+```python
+def classify_ollama_error(self, error: Exception) -> Dict[str, Any]:
+    """Classify Ollama errors for appropriate handling."""
+    error_str = str(error).lower()
+    
+    if "connection refused" in error_str:
+        return {
+            "type": "server_offline",
+            "message": "Ollama server is not running",
+            "troubleshooting": [
+                "Start Ollama server: 'ollama serve'",
+                "Check if port 11434 is available",
+                "Verify Ollama installation"
+            ]
+        }
+    elif "timeout" in error_str:
+        return {
+            "type": "timeout",
+            "message": "Operation timed out",
+            "troubleshooting": [
+                "Check network connectivity",
+                "Verify Ollama is responding",
+                "Try increasing timeout values"
+            ]
+        }
+    elif "404" in error_str:
+        return {
+            "type": "not_found",
+            "message": "Model or endpoint not found",
+            "troubleshooting": [
+                "Check model name spelling",
+                "List available models",
+                "Update Ollama version"
+            ]
+        }
+    else:
+        return {
+            "type": "unknown",
+            "message": f"Unexpected error: {error}",
+            "troubleshooting": [
+                "Check Ollama logs",
+                "Restart Ollama server",
+                "Check system resources"
+            ]
+        }
+```
+
+## Performance Optimization
+
+**Connection Pooling:**
+- Use connection pooling for multiple requests
+- Implement proper connection lifecycle management
+- Handle connection cleanup on shutdown
+- Use appropriate connection limits
+
+**Request Optimization:**
+```python
+class OptimizedOllamaClient:
+    """Ollama client with connection pooling and optimization."""
+    
+    def __init__(self, host: str = "http://localhost:11434"):
+        self.host = host.rstrip('/')
+        self.client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=5.0, read=30.0),
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5)
+        )
+    
+    async def __aenter__(self):
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.client.aclose()
+```
+
+## Model Recommendation Engine
+
+**Model Suggestions:**
+- Categorize models by use case (coding, general, creative)
+- Consider system resources when recommending models
+- Include model size and performance characteristics
+- Provide installation commands
+
+**Recommendation Logic:**
+```python
+async def suggest_models(
+    self,
+    use_case: str,
+    system_ram: Optional[int] = None
+) -> List[Dict[str, Any]]:
+    """Suggest appropriate models based on use case and system resources."""
+    
+    model_database = {
+        "coding": [
+            {
+                "name": "qwen2.5-coder:7b",
+                "description": "Excellent coding assistant",
+                "min_ram_gb": 8,
+                "size_gb": 4.4
+            },
+            {
+                "name": "deepseek-coder:6.7b",
+                "description": "Strong code generation",
+                "min_ram_gb": 8,
+                "size_gb": 3.8
+            }
+        ],
+        "general": [
+            {
+                "name": "llama3.2:3b",
+                "description": "Fast general-purpose model",
+                "min_ram_gb": 4,
+                "size_gb": 2.0
+            }
+        ]
+    }
+    
+    suggestions = model_database.get(use_case, [])
+    
+    # Filter by system resources
+    if system_ram:
+        suggestions = [
+            model for model in suggestions
+            if model["min_ram_gb"] <= system_ram
+        ]
+    
+    return suggestions
+```
+
+## Integration Testing
+
+**Test Patterns:**
+- Test both online and offline scenarios
+- Mock Ollama responses for unit tests
+- Test timeout handling explicitly
+- Verify error message quality
+
+**Example Integration Test:**
+```python
+async def test_ollama_integration():
+    """Test Ollama client integration."""
+    client = OllamaClient()
+    
+    # Test health check
+    health = await client.health_check()
+    assert "healthy" in health
+    
+    # Test with offline server
+    offline_client = OllamaClient("http://localhost:99999")
+    offline_health = await offline_client.health_check()
+            assert offline_health["healthy"] is False
+        assert "troubleshooting" in offline_health

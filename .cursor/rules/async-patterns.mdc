@@ -1,0 +1,165 @@
+---
+globs: ["**/*.py"]
+description: "Async/await patterns and best practices for Ollama MCP Server"
+---
+
+# Async/Await Patterns & Best Practices
+
+You MUST follow these async patterns for the Ollama MCP Server:
+
+## Async Function Design
+
+**Async Declaration:**
+- You MUST use `async def` for all I/O operations (HTTP requests, file operations, subprocess calls)
+- You MUST use `await` for all async operations
+- NEVER mix sync and async code without proper handling
+
+**Async Context Managers:**
+- Use `async with` for HTTP clients: `async with httpx.AsyncClient() as client:`
+- Use `async with` for file operations: `async with aiofiles.open(path) as f:`
+- ALWAYS properly close async resources
+
+**Timeout Handling:**
+- You MUST include timeouts for all external operations
+- Use reasonable defaults: 5s for health checks, 10s for model operations, 30s for downloads
+- Handle timeout exceptions gracefully
+
+## MCP Server Patterns
+
+**Tool Handler Functions:**
+- All MCP tool handlers MUST be async functions
+- Return type MUST be `List[TextContent]`
+- Use proper error handling with try/except blocks
+
+**Example Tool Handler:**
+```python
+async def _handle_model_operation(arguments: Dict[str, Any], client: OllamaClient) -> List[TextContent]:
+    """Handle model operations with proper async patterns."""
+    try:
+        model_name = arguments.get("model_name", "")
+        if not model_name:
+            return error_response("model_name is required")
+        
+        # Async operation with timeout
+        result = await client.get_model(model_name, timeout=10.0)
+        
+        return [TextContent(
+            type="text",
+            text=json.dumps(result, indent=2)
+        )]
+    except asyncio.TimeoutError:
+        return error_response("Operation timed out", "Check network connection")
+    except Exception as e:
+        return error_response(f"Unexpected error: {e}")
+```
+
+## HTTP Client Patterns
+
+**Ollama API Calls:**
+- Use `httpx.AsyncClient` for all HTTP operations
+- Include proper timeout configuration
+- Handle HTTP status codes appropriately
+- Use connection pooling for multiple requests
+
+**Example HTTP Pattern:**
+```python
+async def make_ollama_request(endpoint: str, timeout: float = 10.0) -> Dict[str, Any]:
+    """Make async request to Ollama API."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{OLLAMA_HOST}/api/{endpoint}",
+                timeout=timeout
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.TimeoutException:
+        raise ConnectionError(f"Timeout connecting to Ollama: {endpoint}")
+    except httpx.HTTPError as e:
+        raise ConnectionError(f"HTTP error: {e}")
+```
+
+## Subprocess & System Operations
+
+**Async Subprocess:**
+- Use `asyncio.create_subprocess_exec()` for system commands
+- Always include timeout for subprocess operations
+- Handle process termination gracefully
+
+**Example Subprocess Pattern:**
+```python
+async def run_system_command(command: List[str], timeout: float = 30.0) -> Dict[str, Any]:
+    """Run system command asynchronously."""
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(),
+            timeout=timeout
+        )
+        
+        return {
+            "success": process.returncode == 0,
+            "stdout": stdout.decode(),
+            "stderr": stderr.decode(),
+            "returncode": process.returncode
+        }
+    except asyncio.TimeoutError:
+        process.kill()
+        raise TimeoutError(f"Command timed out: {' '.join(command)}")
+```
+
+## Error Handling in Async Code
+
+**Async Exception Handling:**
+- Use specific exception types: `asyncio.TimeoutError`, `httpx.TimeoutException`
+- Always clean up resources in finally blocks
+- Use proper error propagation patterns
+
+**Progress Tracking:**
+- Use async generators for progress updates
+- Implement cancellation support with `asyncio.CancelledError`
+- Provide meaningful progress information
+
+## Performance Best Practices
+
+**Concurrent Operations:**
+- Use `asyncio.gather()` for concurrent operations when safe
+- Use `asyncio.as_completed()` for processing results as they arrive
+- Avoid blocking operations in async functions
+
+**Resource Management:**
+- Limit concurrent connections with semaphores
+- Use connection pooling for HTTP clients
+- Implement proper cleanup in async context managers
+
+**Example Concurrent Pattern:**
+```python
+async def process_multiple_models(model_names: List[str]) -> List[Dict[str, Any]]:
+    """Process multiple models concurrently."""
+    semaphore = asyncio.Semaphore(3)  # Limit concurrent operations
+    
+    async def process_single_model(model_name: str) -> Dict[str, Any]:
+        async with semaphore:
+            return await client.get_model(model_name)
+    
+    tasks = [process_single_model(name) for name in model_names]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    return [
+        result if not isinstance(result, Exception) else {"error": str(result)}
+        for result in results
+    ]
+```
+
+## Testing Async Code
+
+**Async Test Patterns:**
+- Use `pytest-asyncio` for async test functions
+- Mock async dependencies properly
+- Test timeout scenarios explicitly
+- Use `asyncio.TimeoutError` for timeout testing

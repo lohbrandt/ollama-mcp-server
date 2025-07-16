@@ -1,0 +1,461 @@
+---
+globs: ["**/*.py"]
+description: "Guidelines for creating new MCP tools for Ollama MCP Server"
+tags: ["manual"]
+---
+
+# MCP Tool Development Guidelines
+
+You MUST follow these guidelines when creating new MCP tools for the Ollama MCP Server:
+
+## Tool Design Principles
+
+**Self-Contained Design:**
+- Each tool should be self-contained with minimal dependencies
+- Tools should work independently without relying on external services
+- Include all necessary error handling and validation within the tool
+- Provide meaningful defaults and fallback behavior
+
+**User Experience Focus:**
+- Design tools from the user's perspective
+- Provide clear, actionable responses
+- Include helpful examples and usage guidance
+- Handle common user mistakes gracefully
+
+## Tool Structure Template
+
+**Standard Tool Implementation:**
+```python
+from typing import Dict, Any, List, Optional
+from mcp.types import Tool, TextContent
+import json
+
+def create_your_tool() -> Tool:
+    """Create tool definition with complete schema."""
+    return Tool(
+        name="your_tool_name",
+        description="Clear, concise description of what the tool does",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "required_param": {
+                    "type": "string",
+                    "description": "Clear description of required parameter"
+                },
+                "optional_param": {
+                    "type": "string",
+                    "description": "Clear description with default behavior",
+                    "default": "default_value"
+                }
+            },
+            "required": ["required_param"]
+        }
+    )
+
+async def handle_your_tool(
+    arguments: Dict[str, Any],
+    client: OllamaClient
+) -> List[TextContent]:
+    """
+    Handle tool execution with comprehensive error handling.
+    
+    Args:
+        arguments: Tool input parameters
+        client: Ollama client instance
+        
+    Returns:
+        List[TextContent]: Formatted response
+    """
+    try:
+        # 1. Parameter validation
+        validation_result = validate_parameters(arguments)
+        if not validation_result["valid"]:
+            return create_error_response(
+                validation_result["error"],
+                validation_result["troubleshooting"]
+            )
+        
+        # 2. Extract validated parameters
+        param = arguments.get("required_param")
+        optional_param = arguments.get("optional_param", "default_value")
+        
+        # 3. Core tool logic
+        result = await execute_tool_logic(param, optional_param, client)
+        
+        # 4. Format successful response
+        return create_success_response(result)
+        
+    except ConnectionError as e:
+        return create_connection_error_response(str(e))
+    except ValueError as e:
+        return create_validation_error_response(str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error in your_tool_name: {e}")
+        return create_generic_error_response(str(e))
+```
+
+## Parameter Validation
+
+**Input Validation Standards:**
+- Validate all parameters before processing
+- Provide specific error messages for validation failures
+- Include examples of correct parameter formats
+- Handle edge cases and boundary conditions
+
+**Validation Implementation:**
+```python
+def validate_parameters(arguments: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate tool parameters with detailed error reporting."""
+    
+    # Check required parameters
+    required_param = arguments.get("required_param", "").strip()
+    if not required_param:
+        return {
+            "valid": False,
+            "error": "required_param is mandatory",
+            "troubleshooting": "Provide a non-empty string for required_param",
+            "example": {"required_param": "example_value"}
+        }
+    
+    # Validate parameter format
+    if not isinstance(required_param, str):
+        return {
+            "valid": False,
+            "error": "required_param must be a string",
+            "troubleshooting": f"Provided type: {type(required_param).__name__}",
+            "example": {"required_param": "string_value"}
+        }
+    
+    # Validate parameter constraints
+    if len(required_param) > 100:
+        return {
+            "valid": False,
+            "error": "required_param too long (max 100 characters)",
+            "troubleshooting": f"Current length: {len(required_param)}",
+            "example": {"required_param": "shorter_value"}
+        }
+    
+    return {"valid": True}
+```
+
+## Response Formatting
+
+**Standardized Response Structure:**
+- Use consistent JSON formatting with 2-space indentation
+- Include success/failure indicators
+- Provide helpful metadata and context
+- Include next steps or related tool suggestions
+
+**Response Helper Functions:**
+```python
+def create_success_response(
+    data: Any,
+    message: str = None,
+    metadata: Dict[str, Any] = None
+) -> List[TextContent]:
+    """Create standardized success response."""
+    response = {
+        "success": True,
+        "data": data
+    }
+    
+    if message:
+        response["message"] = message
+    
+    if metadata:
+        response["metadata"] = metadata
+    
+    # Add helpful context
+    response["timestamp"] = datetime.now().isoformat()
+    response["privacy_note"] = "All processing done locally"
+    
+    return [TextContent(
+        type="text",
+        text=json.dumps(response, indent=2)
+    )]
+
+def create_error_response(
+    error: str,
+    troubleshooting: str = None,
+    suggestions: List[str] = None
+) -> List[TextContent]:
+    """Create standardized error response."""
+    response = {
+        "success": False,
+        "error": error,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    if troubleshooting:
+        response["troubleshooting"] = troubleshooting
+    
+    if suggestions:
+        response["suggestions"] = suggestions
+    
+    return [TextContent(
+        type="text",
+        text=json.dumps(response, indent=2)
+    )]
+```
+
+## Error Handling Strategies
+
+**Comprehensive Error Coverage:**
+- Handle network/connection errors
+- Handle validation errors
+- Handle resource unavailability
+- Handle timeout scenarios
+- Handle unexpected errors with graceful degradation
+
+**Error Handling Implementation:**
+```python
+async def execute_tool_with_error_handling(
+    operation: Callable,
+    operation_name: str,
+    *args,
+    **kwargs
+) -> Dict[str, Any]:
+    """Execute operation with comprehensive error handling."""
+    try:
+        result = await operation(*args, **kwargs)
+        return {"success": True, "result": result}
+        
+    except ConnectionError as e:
+        return {
+            "success": False,
+            "error": f"Connection failed: {e}",
+            "troubleshooting": {
+                "check_ollama": "Verify Ollama is running: 'ollama serve'",
+                "check_network": "Check network connectivity",
+                "retry": "Try the operation again"
+            }
+        }
+    except asyncio.TimeoutError:
+        return {
+            "success": False,
+            "error": f"{operation_name} timed out",
+            "troubleshooting": {
+                "check_system": "Check system resources",
+                "retry": "Try again with a smaller request",
+                "contact": "Contact support if issue persists"
+            }
+        }
+    except ValueError as e:
+        return {
+            "success": False,
+            "error": f"Invalid input: {e}",
+            "troubleshooting": {
+                "check_format": "Verify input format",
+                "see_examples": "Check tool documentation for examples"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error in {operation_name}: {e}")
+        return {
+            "success": False,
+            "error": "Unexpected error occurred",
+            "troubleshooting": {
+                "check_logs": "Check system logs for details",
+                "retry": "Try the operation again",
+                "report": "Report this issue if it persists"
+            }
+        }
+```
+
+## Testing New Tools
+
+**Test Coverage Requirements:**
+- Unit tests for parameter validation
+- Integration tests with Ollama client
+- Error scenario testing
+- Performance testing for resource-intensive operations
+
+**Test Implementation Example:**
+```python
+import pytest
+from unittest.mock import AsyncMock, patch
+
+class TestYourTool:
+    @pytest.mark.asyncio
+    async def test_successful_operation(self):
+        """Test successful tool execution."""
+        mock_client = AsyncMock()
+        mock_client.some_method.return_value = {"success": True, "data": "result"}
+        
+        arguments = {"required_param": "test_value"}
+        result = await handle_your_tool(arguments, mock_client)
+        
+        assert len(result) == 1
+        response = json.loads(result[0].text)
+        assert response["success"] is True
+        assert "data" in response
+    
+    @pytest.mark.asyncio
+    async def test_parameter_validation(self):
+        """Test parameter validation."""
+        mock_client = AsyncMock()
+        
+        # Test missing required parameter
+        arguments = {}
+        result = await handle_your_tool(arguments, mock_client)
+        
+        response = json.loads(result[0].text)
+        assert response["success"] is False
+        assert "required_param" in response["error"]
+    
+    @pytest.mark.asyncio
+    async def test_connection_error(self):
+        """Test connection error handling."""
+        mock_client = AsyncMock()
+        mock_client.some_method.side_effect = ConnectionError("Network error")
+        
+        arguments = {"required_param": "test_value"}
+        result = await handle_your_tool(arguments, mock_client)
+        
+        response = json.loads(result[0].text)
+        assert response["success"] is False
+        assert "troubleshooting" in response
+```
+
+## Tool Documentation
+
+**Documentation Requirements:**
+- Clear tool description and purpose
+- Complete parameter documentation with examples
+- Response format documentation
+- Common use cases and examples
+- Troubleshooting guide
+
+**Documentation Template:**
+```python
+"""
+Tool Name: your_tool_name
+
+Purpose:
+    Brief description of what the tool does and when to use it.
+
+Parameters:
+    required_param (string, required): Description of required parameter
+        Example: "example_value"
+    
+    optional_param (string, optional): Description of optional parameter
+        Default: "default_value"
+        Example: "custom_value"
+
+Response Format:
+    Success Response:
+    {
+        "success": true,
+        "data": "result_data",
+        "message": "operation_completed",
+        "timestamp": "2024-01-01T12:00:00"
+    }
+    
+    Error Response:
+    {
+        "success": false,
+        "error": "error_description",
+        "troubleshooting": "helpful_guidance",
+        "timestamp": "2024-01-01T12:00:00"
+    }
+
+Usage Examples:
+    1. Basic usage:
+       Input: {"required_param": "value"}
+       Output: {"success": true, "data": "result"}
+    
+    2. With optional parameter:
+       Input: {"required_param": "value", "optional_param": "custom"}
+       Output: {"success": true, "data": "custom_result"}
+
+Common Issues:
+    1. Parameter validation errors
+       - Cause: Missing or invalid parameters
+       - Solution: Check parameter format and requirements
+    
+    2. Connection errors
+       - Cause: Ollama server not accessible
+       - Solution: Start Ollama server and verify connectivity
+"""
+```
+
+## Integration Guidelines
+
+**Tool Registration:**
+- Add tool to appropriate category (base_tools or advanced_tools)
+- Update tool routing logic
+- Add tool to documentation
+- Include tool in test suite
+
+**Integration Steps:**
+```python
+# 1. Add tool definition to appropriate module
+def get_your_category_tools() -> List[Tool]:
+    """Get tools for your category."""
+    return [
+        # ... existing tools ...
+        create_your_tool(),
+    ]
+
+# 2. Add tool handler to routing
+async def handle_your_category_tool(
+    name: str,
+    arguments: Dict[str, Any],
+    client: OllamaClient
+) -> List[TextContent]:
+    """Handle tool calls for your category."""
+    if name == "your_tool_name":
+        return await handle_your_tool(arguments, client)
+    # ... handle other tools ...
+
+# 3. Update main server routing
+async def route_tool_call(
+    name: str,
+    arguments: Dict[str, Any]
+) -> List[TextContent]:
+    """Route tool calls to appropriate handlers."""
+    your_category_tools = {"your_tool_name", "other_tool"}
+    
+    if name in your_category_tools:
+        return await handle_your_category_tool(name, arguments, client)
+    # ... route to other categories ...
+```
+
+## Performance Considerations
+
+**Resource Management:**
+- Use appropriate timeouts for operations
+- Implement progress tracking for long-running operations
+- Handle memory usage for large data processing
+- Use async patterns for I/O operations
+
+**Performance Guidelines:**
+```python
+# Use timeouts
+async def long_running_operation(timeout: float = 30.0):
+    async with asyncio.timeout(timeout):
+        return await perform_operation()
+
+# Implement progress tracking
+async def operation_with_progress(
+    callback: Optional[Callable] = None
+):
+    total_steps = 10
+    for i in range(total_steps):
+        await perform_step(i)
+        if callback:
+            progress = (i + 1) / total_steps
+            await callback(progress, f"Step {i+1}/{total_steps}")
+
+# Handle large data efficiently
+async def process_large_data(data: List[Any]) -> List[Any]:
+    # Process in chunks to avoid memory issues
+    chunk_size = 100
+    results = []
+    
+    for i in range(0, len(data), chunk_size):
+        chunk = data[i:i + chunk_size]
+        chunk_results = await process_chunk(chunk)
+        results.extend(chunk_results)
+    
+    return results
