@@ -181,4 +181,11 @@ Desktop.ini
 debug/
 *.log
 
+
 .venv/
+
+# cache
+*.cache
+.mypy_cache/
+*/__pycache__/
+
