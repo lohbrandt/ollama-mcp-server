@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .config import ServerConfig, get_config
+from .config import OllamaConfig, get_config
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class OllamaProcessInfo:
 @dataclass
 class OllamaServerConfig:
     """
-    DEPRECATED: Use config.ServerConfig instead
+    DEPRECATED: Use config.OllamaConfig instead
     
     This class is maintained for backward compatibility.
     """
@@ -87,7 +87,7 @@ class OllamaServerConfig:
         """Validate configuration after creation"""
         import warnings
         warnings.warn(
-            "OllamaServerConfig is deprecated. Use config.ServerConfig instead.",
+            "OllamaServerConfig is deprecated. Use config.OllamaConfig instead.",
             DeprecationWarning,
             stacklevel=2
         )
@@ -172,7 +172,7 @@ class CrossPlatformProcessManager:
         
         # Check PATH first
         for name in executable_names:
-            if path := Path.resolve_path(name):
+            if path := CrossPlatformProcessManager.resolve_path(name):
                 return path
         
         # Platform-specific default locations
@@ -257,8 +257,8 @@ class OllamaServerManager:
             Path to Ollama executable or None if not found
         """
         if self._cached_executable_path is None:
-            if self.config.custom_executable_path:
-                self._cached_executable_path = Path(self.config.custom_executable_path)
+            if hasattr(self.config, 'custom_path') and self.config.custom_path:
+                self._cached_executable_path = Path(self.config.custom_path)
             else:
                 self._cached_executable_path = self.process_manager.find_ollama_executable()
         

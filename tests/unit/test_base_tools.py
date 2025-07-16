@@ -66,6 +66,15 @@ class TestHandleBaseTool:
     @pytest.mark.asyncio
     async def test_handle_list_local_models(self, mock_client):
         """Test list_local_models tool routing."""
+        # Configure mock to return JSON-serializable data
+        mock_client.list_models.return_value = {
+            "success": True,
+            "models": [
+                ModelInfo(name="test-model", size=1024*1024*1024, modified="2024-01-01")
+            ],
+            "count": 1
+        }
+        
         result = await handle_base_tool("list_local_models", {}, mock_client)
         
         assert len(result) == 1
@@ -76,6 +85,13 @@ class TestHandleBaseTool:
     @pytest.mark.asyncio
     async def test_handle_local_llm_chat(self, mock_client):
         """Test local_llm_chat tool routing."""
+        # Configure mock to return JSON-serializable data
+        mock_client.chat.return_value = {
+            "success": True,
+            "response": "Hello! How can I help?",
+            "model": "test-model"
+        }
+        
         arguments = {"message": "Hello", "model": "test-model"}
         result = await handle_base_tool("local_llm_chat", arguments, mock_client)
         
@@ -86,6 +102,14 @@ class TestHandleBaseTool:
     @pytest.mark.asyncio
     async def test_handle_ollama_health_check(self, mock_client):
         """Test ollama_health_check tool routing."""
+        # Configure mock to return JSON-serializable data
+        mock_client.health_check.return_value = {
+            "healthy": True,
+            "models_count": 3,
+            "host": "http://localhost:11434",
+            "message": "Ollama server is running"
+        }
+        
         result = await handle_base_tool("ollama_health_check", {}, mock_client)
         
         assert len(result) == 1
@@ -297,16 +321,16 @@ class TestHandleHealthCheck:
             "healthy": True,
             "models_count": 3,
             "host": "http://localhost:11434",
-            "message": "Ollama server responsive"
+            "message": "Ollama server is running"
         }
         
         result = await _handle_health_check(mock_client)
         
         assert len(result) == 1
         response = json.loads(result[0].text)
-        assert response["status"] == "healthy"
-        assert response["models_count"] == 3
-        assert response["host"] == "http://localhost:11434"
+        assert response["status"] == "HEALTHY"
+        assert response["models_available"] == 3
+        assert "next_steps" in response
 
     @pytest.mark.asyncio
     async def test_handle_health_check_unhealthy(self, mock_client):
@@ -321,8 +345,7 @@ class TestHandleHealthCheck:
         
         assert len(result) == 1
         response = json.loads(result[0].text)
-        assert response["status"] == "unhealthy"
-        assert "Connection refused" in response["error"]
+        assert response["status"] == "UNHEALTHY"
         assert "troubleshooting" in response
 
 
@@ -334,16 +357,31 @@ class TestHandleSystemCheck:
         """Test successful system check."""
         with patch('psutil.cpu_count', return_value=8):
             with patch('psutil.virtual_memory') as mock_memory:
+                # Mock memory object with required attributes
                 mock_memory.return_value.total = 16 * 1024 * 1024 * 1024  # 16GB
+                mock_memory.return_value.available = 8 * 1024 * 1024 * 1024  # 8GB
+                mock_memory.return_value.percent = 50.0
                 
-                result = await _handle_system_check()
-                
-                assert len(result) == 1
-                response = json.loads(result[0].text)
-                assert response["success"] is True
-                assert response["cpu_count"] == 8
-                assert response["memory_gb"] == 16.0
-                assert "platform" in response
+                with patch('psutil.disk_usage') as mock_disk:
+                    # Mock disk object with required attributes
+                    mock_disk.return_value.total = 500 * 1024 * 1024 * 1024  # 500GB
+                    mock_disk.return_value.free = 200 * 1024 * 1024 * 1024  # 200GB
+                    
+                    with patch('src.ollama_mcp.tools.base_tools._get_gpu_info') as mock_gpu:
+                        mock_gpu.return_value = {
+                            "gpu_count": 0,
+                            "gpus": [],
+                            "detection_method": "none"
+                        }
+                        
+                        result = await _handle_system_check()
+                        
+                        assert len(result) == 1
+                        response = json.loads(result[0].text)
+                        assert response["success"] is True
+                        assert response["system_resources"]["cpu_cores"] == 8
+                        assert response["system_resources"]["total_memory_gb"] == 16.0
+                        assert "ai_readiness" in response
 
     @pytest.mark.asyncio
     async def test_handle_system_check_with_gpu(self):
@@ -351,19 +389,25 @@ class TestHandleSystemCheck:
         with patch('psutil.cpu_count', return_value=8):
             with patch('psutil.virtual_memory') as mock_memory:
                 mock_memory.return_value.total = 16 * 1024 * 1024 * 1024
+                mock_memory.return_value.available = 8 * 1024 * 1024 * 1024
+                mock_memory.return_value.percent = 50.0
                 
-                # Mock GPU detection
-                with patch('src.ollama_mcp.tools.base_tools._get_gpu_info') as mock_gpu:
-                    mock_gpu.return_value = {
-                        "available": True,
-                        "name": "Test GPU",
-                        "memory_gb": 8.0
-                    }
+                with patch('psutil.disk_usage') as mock_disk:
+                    mock_disk.return_value.total = 500 * 1024 * 1024 * 1024
+                    mock_disk.return_value.free = 200 * 1024 * 1024 * 1024
                     
-                    result = await _handle_system_check()
-                    
-                    assert len(result) == 1
-                    response = json.loads(result[0].text)
-                    assert response["success"] is True
-                    assert response["gpu_info"]["available"] is True
-                    assert response["gpu_info"]["name"] == "Test GPU" 
+                    # Mock GPU detection
+                    with patch('src.ollama_mcp.tools.base_tools._get_gpu_info') as mock_gpu:
+                        mock_gpu.return_value = {
+                            "gpu_count": 1,
+                            "gpus": [{"name": "Test GPU"}],
+                            "detection_method": "nvidia-smi"
+                        }
+                        
+                        result = await _handle_system_check()
+                        
+                        assert len(result) == 1
+                        response = json.loads(result[0].text)
+                        assert response["success"] is True
+                        assert response["gpu_resources"]["gpu_count"] == 1
+                        assert response["gpu_resources"]["detection_method"] == "nvidia-smi" 

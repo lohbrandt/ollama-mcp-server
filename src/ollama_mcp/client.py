@@ -292,25 +292,33 @@ class OllamaClient:
     # Sync methods for executor
     def _sync_list(self) -> List[Any]:
         """Sync list models"""
-        if not self.client:
-            raise Exception("Client not initialized")
-        response = self.client.list()
-        return getattr(response, 'models', response.get('models', []))
+        try:
+            import ollama
+            response = ollama.list()
+            return getattr(response, 'models', response.get('models', []))
+        except Exception as e:
+            raise Exception(f"Failed to list models: {e}")
     
     def _sync_chat(self, model: str, messages: List[Dict], options: Dict) -> Dict:
         """Sync chat"""
-        if not self.client:
-            raise Exception("Client not initialized")
-        return self.client.chat(model=model, messages=messages, options=options)
+        try:
+            import ollama
+            return ollama.chat(model=model, messages=messages, options=options)
+        except Exception as e:
+            raise Exception(f"Failed to chat: {e}")
     
     def _sync_pull(self, model_name: str) -> Dict:
         """Sync pull model"""
-        if not self.client:
-            raise Exception("Client not initialized")
-        return self.client.pull(model_name)
+        try:
+            import ollama
+            return ollama.pull(model_name)
+        except Exception as e:
+            raise Exception(f"Failed to pull model: {e}")
     
     def _sync_remove(self, model_name: str) -> Dict:
         """Sync remove model"""
-        if not self.client:
-            raise Exception("Client not initialized")
-        return self.client.delete(model_name)
+        try:
+            import ollama
+            return ollama.delete(model_name)
+        except Exception as e:
+            raise Exception(f"Failed to remove model: {e}")
