@@ -15,6 +15,14 @@ src/ollama_mcp/server.py
 src/ollama_mcp/server_manager.py
 src/ollama_mcp/server_v0_9_backup.py
 src/ollama_mcp/server_v1_backup.py
+src/ollama_mcp/config/__init__.py
+src/ollama_mcp/config/settings.py
+src/ollama_mcp/core/__init__.py
+src/ollama_mcp/core/exceptions.py
+src/ollama_mcp/core/models.py
+src/ollama_mcp/core/protocols.py
+src/ollama_mcp/infrastructure/__init__.py
+src/ollama_mcp/infrastructure/ollama_client.py
 src/ollama_mcp/tools/__init__.py
 src/ollama_mcp/tools/advanced_tools.py
 src/ollama_mcp/tools/base_tools.py
