@@ -25,7 +25,6 @@ start_server() {
         echo "Error: ollama-mcp-server executable not found"
         return 1
     fi
-    fi
     nohup "$EXECUTABLE" > "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     echo "$SERVICE_NAME started with PID $(cat $PID_FILE)"

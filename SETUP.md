@@ -55,11 +55,13 @@ Use the `ollama-mcp` script for manual control:
 ## Troubleshooting
 
 ### Check Service Status
+
 ```bash
 ./manage-service status
 ```
 
 ### View Logs
+
 ```bash
 ./manage-service logs
 # or
@@ -67,18 +69,20 @@ tail -f /tmp/ollama_mcp_server.log
 ```
 
 ### Restart Everything
+
 ```bash
 ./manage-service restart
 ```
 
 ### Check if Ollama is Running
+
 ```bash
 brew services list | grep ollama
 ```
 
 ## Directory Structure
 
-```
+```text
 /path/to/ollama-mcp-server/
 ├── ollama-mcp          # Manual service management script
 ├── manage-service      # Automatic service management script
@@ -89,6 +93,7 @@ brew services list | grep ollama
 ## Notes
 
 The service is configured to:
+
 - Start automatically on login
 - Restart automatically if it crashes
 - Log all output to `/tmp/ollama_mcp_server.log`
