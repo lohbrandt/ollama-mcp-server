@@ -3,24 +3,25 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
-[![Status: Beta](https://img.shields.io/badge/Status-Beta-orange.svg)](https://github.com/paolodalprato/ollama-mcp-server)
+[![Pydantic v2](https://img.shields.io/badge/Pydantic-v2.0+-green.svg)](https://docs.pydantic.dev/)
+[![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](https://github.com/paolodalprato/ollama-mcp-server)
 
-A comprehensive **Model Context Protocol (MCP) server** for Ollama management with zero external dependencies, enterprise-grade error handling, and complete cross-platform compatibility.
+A comprehensive **Model Context Protocol (MCP) server** for Ollama management built on modern Python architecture with Pydantic v2, full async support, and enterprise-grade reliability.
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
+- [Overview](#-overview)
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Installation](#-installation)
+- [Configuration](#️-configuration)
+- [Usage](#-usage)
 - [Available Tools](#available-tools)
-- [Client Setup](#client-setup)
-- [Development](#development)
+- [Client Setup](#-client-setup)
+- [Development](#️-development)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ## 🎯 Overview
 
@@ -36,12 +37,14 @@ Ollama MCP Server provides a complete interface for managing Ollama through MCP-
 ## ✨ Features
 
 ### 🔧 Core Capabilities
+
 - **Model Management**: Download, remove, list, and search models
 - **Direct Chat**: Communicate with local models through natural language
 - **Server Control**: Start, monitor, and troubleshoot Ollama server
 - **System Analysis**: Hardware compatibility assessment and resource monitoring
 
 ### 🎛️ Advanced Features
+
 - **AI-Powered Recommendations**: Get model suggestions based on your needs
 - **Progress Tracking**: Monitor downloads with real-time progress indicators
 - **Multi-GPU Support**: NVIDIA, AMD, Intel, and Apple Silicon detection
@@ -59,7 +62,7 @@ Ollama MCP Server provides a complete interface for managing Ollama through MCP-
 
 ```bash
 # Clone the repository
-git clone https://github.com/paolodalprato/ollama-mcp-server.git
+git clone https://github.com/lohbrandt/ollama-mcp-server.git
 cd ollama-mcp-server
 
 # Install in development mode
@@ -101,7 +104,7 @@ Restart your MCP client and start using natural language commands:
 
 ```bash
 # Clone and install
-git clone https://github.com/paolodalprato/ollama-mcp-server.git
+git clone https://github.com/lohbrandt/ollama-mcp-server.git
 cd ollama-mcp-server
 pip install -e .
 ```
@@ -166,6 +169,7 @@ Ollama MCP Server works through your MCP client - you interact using **natural l
 ### Basic Commands
 
 #### Model Management
+
 ```
 "Show me my installed models"
 "Download llama3.2 for general tasks"
@@ -174,6 +178,7 @@ Ollama MCP Server works through your MCP client - you interact using **natural l
 ```
 
 #### Chat and Interaction
+
 ```
 "Chat with qwen2.5: write a Python function to sort a list"
 "Use deepseek-coder to debug this code: [paste code]"
@@ -181,6 +186,7 @@ Ollama MCP Server works through your MCP client - you interact using **natural l
 ```
 
 #### System Operations
+
 ```
 "Check if Ollama is running"
 "Start the Ollama server"
@@ -191,18 +197,22 @@ Ollama MCP Server works through your MCP client - you interact using **natural l
 ### Real-World Examples
 
 #### Complete Workflow Setup
-*"I need to set up local AI for coding. Check my system, recommend a good coding model, download it, and test it."*
+
+> I need to set up local AI for coding. Check my system, recommend a good coding model, download it, and test it.
 
 This automatically triggers:
+
 1. `system_resource_check` - Verify hardware capability
 2. `suggest_models` - Get coding model recommendations
 3. `download_model` - Download the recommended model
 4. `local_llm_chat` - Test with a coding question
 
 #### Model Management Session
-*"Show me what models I have, see what new coding models are available, and clean up old models."*
+
+> Show me what models I have, see what new coding models are available, and clean up old models.
 
 Triggers:
+
 1. `list_local_models` - Current inventory
 2. `search_available_models` - Browse new options
 3. `remove_model` - Cleanup unwanted models
@@ -333,11 +343,12 @@ pytest -v
 pytest --cov=src/ollama_mcp --cov-report=html
 ```
 
-## 🐛 Troubleshooting
+#### Ollama Not Found
 
 ### Common Issues
 
 #### Ollama Not Found
+
 ```bash
 # Verify Ollama installation
 ollama --version
@@ -348,6 +359,7 @@ where ollama  # Windows
 ```
 
 #### Server Connection Issues
+
 ```bash
 # Check if Ollama is running
 curl http://localhost:11434/api/tags
@@ -357,27 +369,31 @@ ollama serve
 ```
 
 #### Permission Issues
+
 - **Windows**: Run as Administrator if needed
 - **Linux/macOS**: Check user permissions for service management
 
 ### Platform-Specific Issues
 
 #### Windows
+
 - Ensure Ollama is installed in Program Files or AppData
 - Check Windows Defender/firewall settings
 - Run PowerShell as Administrator if needed
 
 #### Linux
+
 - Verify Ollama service is running: `systemctl status ollama`
 - Check user permissions for service management
 - Ensure proper PATH configuration
 
 #### macOS
+
 - Verify Homebrew installation if using Homebrew
 - Check Apple Silicon compatibility for GPU detection
 - Ensure proper permissions for system monitoring
 
-### Getting Help
+## Troubleshooting
 
 If you encounter issues:
 
@@ -463,6 +479,23 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
+### Special Thanks
+
+**This project is built upon the excellent foundation provided by [Paolo Dalprato's Ollama MCP Server](https://github.com/paolodalprato/ollama-mcp-server).**
+
+We are deeply grateful to Paolo for:
+
+- 🏗️ **Creating the original architecture** - The comprehensive MCP server design with 11 powerful tools
+- 💡 **Innovative approach** - Zero external dependencies and self-contained design philosophy  
+- 🔧 **Cross-platform foundation** - Windows, Linux, macOS compatibility framework
+- 🚀 **Enterprise-grade patterns** - Professional error handling and robust system design
+- 📖 **Excellent documentation** - Clear usage examples and thorough troubleshooting guides
+- 🤝 **Open source contribution** - Making this powerful tool available to the community
+
+Paolo's original work provided the solid foundation that made this enhanced version possible. The current repository builds upon his vision with Pydantic v2 migration, additional features, and continued development.
+
+### Additional Thanks
+
 - **Ollama Team**: For the excellent local AI platform
 - **MCP Project**: For the Model Context Protocol specification
 - **Claude Desktop**: For MCP client implementation
@@ -470,9 +503,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Bug Reports**: [GitHub Issues](https://github.com/paolodalprato/ollama-mcp-server/issues)
-- **Feature Requests**: [GitHub Issues](https://github.com/paolodalprato/ollama-mcp-server/issues)
-- **Community Discussion**: [GitHub Discussions](https://github.com/paolodalprato/ollama-mcp-server/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/lohbrandt/ollama-mcp-server/issues)
+- **Feature Requests**: [GitHub Issues](https://github.com/lohbrandt/ollama-mcp-server/issues)
+- **Community Discussion**: [GitHub Discussions](https://github.com/lohbrandt/ollama-mcp-server/discussions)
 
 ---
 
