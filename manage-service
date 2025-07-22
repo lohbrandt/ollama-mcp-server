@@ -38,11 +38,33 @@ status_service() {
 }
 
 show_logs() {
+    LOG_DIR="${OLLAMA_MCP_LOG_DIR:-/tmp}"
+    STDOUT_LOG="${OLLAMA_MCP_LOG_FILE:-$LOG_DIR/ollama_mcp_server.log}"
+    STDERR_LOG="${OLLAMA_MCP_ERROR_LOG_FILE:-$LOG_DIR/ollama_mcp_server_error.log}"
+    LAUNCHD_OUT="/Users/$(whoami)/Library/Logs/OllamaMCP/launchd_out.log"
+    LAUNCHD_ERR="/Users/$(whoami)/Library/Logs/OllamaMCP/launchd_error.log"
+    
     echo "Showing Ollama MCP Server logs..."
-    echo "=== Standard Output ==="
-    tail -f /tmp/ollama_mcp_server.log &
-    echo "=== Standard Error ==="
-    tail -f /tmp/ollama_mcp_server_error.log &
+    echo "Log directory: $LOG_DIR"
+    echo "=== Application Logs (from ollama-mcp script) ==="
+    if [ -f "$STDOUT_LOG" ]; then
+        echo "Following: $STDOUT_LOG"
+        tail -f "$STDOUT_LOG" &
+    else
+        echo "Application log not found: $STDOUT_LOG"
+    fi
+    
+    echo "=== Service Logs (from launchd) ==="
+    if [ -f "$LAUNCHD_OUT" ]; then
+        echo "Following: $LAUNCHD_OUT"
+        tail -f "$LAUNCHD_OUT" &
+    fi
+    
+    if [ -f "$LAUNCHD_ERR" ]; then
+        echo "Following: $LAUNCHD_ERR"
+        tail -f "$LAUNCHD_ERR" &
+    fi
+    
     wait
 }
 

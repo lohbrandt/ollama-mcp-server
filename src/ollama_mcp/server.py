@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Ollama MCP Server v0.9 - Complete & Advanced
 Extended from v1.1 with comprehensive model management capabilities

@@ -1,0 +1,47 @@
+# Ollama MCP Server Environment Variables Configuration
+# Copy this file to .env and modify as needed
+
+# ======================
+# LOG CONFIGURATION
+# ======================
+
+# Base log directory (default: /tmp)
+# All other log paths will be relative to this if not specified absolutely
+export OLLAMA_MCP_LOG_DIR="/Users/$(whoami)/Library/Logs/OllamaMCP"
+
+# Individual log file paths (optional - will use LOG_DIR if not specified)
+export OLLAMA_MCP_LOG_FILE="$OLLAMA_MCP_LOG_DIR/ollama_mcp_server.log"
+export OLLAMA_MCP_ERROR_LOG_FILE="$OLLAMA_MCP_LOG_DIR/ollama_mcp_server_error.log"
+export OLLAMA_MCP_PID_FILE="$OLLAMA_MCP_LOG_DIR/ollama_mcp_server.pid"
+
+# ======================
+# SERVER CONFIGURATION
+# ======================
+
+# Server directory (default: current script directory)
+# export OLLAMA_MCP_SERVER_DIR="/path/to/ollama-mcp-server"
+
+# ======================
+# USAGE EXAMPLES
+# ======================
+
+# To use custom log directory:
+# export OLLAMA_MCP_LOG_DIR="/var/log/ollama-mcp"
+# ./manage-service restart
+
+# To use temporary logs (default behavior):
+# unset OLLAMA_MCP_LOG_DIR
+# ./manage-service restart
+
+# To set logs for current session only:
+# OLLAMA_MCP_LOG_DIR="/tmp/debug" ./ollama-mcp start
+
+# ======================
+# SOURCING THIS FILE
+# ======================
+
+# To use these settings:
+# 1. Copy this file: cp env-config.example .env
+# 2. Edit .env with your preferred paths
+# 3. Source it: source .env
+# 4. Restart service: ./manage-service restart

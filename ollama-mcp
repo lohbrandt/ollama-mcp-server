@@ -1,14 +1,26 @@
 #!/bin/bash
 
 SERVICE_NAME="Ollama MCP Server"
-PID_FILE="/tmp/ollama_mcp_server.pid"
-LOG_FILE="/tmp/ollama_mcp_server.log"
+LOG_DIR="${OLLAMA_MCP_LOG_DIR:-/tmp}"
+PID_FILE="${OLLAMA_MCP_PID_FILE:-$LOG_DIR/ollama_mcp_server.pid}"
+LOG_FILE="${OLLAMA_MCP_LOG_FILE:-$LOG_DIR/ollama_mcp_server.log}"
+ERROR_LOG_FILE="${OLLAMA_MCP_ERROR_LOG_FILE:-$LOG_DIR/ollama_mcp_server_error.log}"
 SERVER_DIR="${OLLAMA_MCP_SERVER_DIR:-$(dirname "$(readlink -f "$0")")}"
 
 start_server() {
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
         echo "$SERVICE_NAME is already running with PID $(cat "$PID_FILE")"
         return 1
+    fi
+    
+    # Create log directory if it doesn't exist
+    if [ ! -d "$LOG_DIR" ]; then
+        mkdir -p "$LOG_DIR"
+        if [ $? -ne 0 ]; then
+            echo "Error: Could not create log directory $LOG_DIR"
+            return 1
+        fi
+        echo "Created log directory: $LOG_DIR"
     fi
     
     # Validate required paths
