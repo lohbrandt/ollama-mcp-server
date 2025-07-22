@@ -10,18 +10,33 @@ A comprehensive **Model Context Protocol (MCP) server** for Ollama management bu
 
 ## 📋 Table of Contents
 
-- [Overview](#-overview)
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-- [Installation](#-installation)
-- [Configuration](#️-configuration)
-- [Usage](#-usage)
-- [Available Tools](#available-tools)
-- [Client Setup](#-client-setup)
-- [Development](#️-development)
+### Getting Started
+
+- [🎯 Overview](#-overview)
+- [✨ Features](#-features)
+- [🚀 Quick Start](#-quick-start)
+- [📦 Installation](#-installation)
+- [⚙️ Configuration](#️-configuration)
+
+### Using the Server
+
+- [💬 Usage](#-usage)
+- [🛠️ Available Tools](#️-available-tools)
+- [🔧 Client Setup](#-client-setup)
+
+### Development & Support
+
+- [🏗️ Development](#️-development)
+- [📊 Performance](#-performance)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [🤝 Contributing](#-contributing)
+
+### Reference
+
+- [🔐 Security](#-security)
+- [📄 License](#-license)
+- [🙏 Acknowledgments](#-acknowledgments)
+- [📞 Support](#-support)
 
 ## 🎯 Overview
 
@@ -170,7 +185,7 @@ Ollama MCP Server works through your MCP client - you interact using **natural l
 
 #### Model Management
 
-```
+```text
 "Show me my installed models"
 "Download llama3.2 for general tasks"
 "Remove the old mistral model"
@@ -179,7 +194,7 @@ Ollama MCP Server works through your MCP client - you interact using **natural l
 
 #### Chat and Interaction
 
-```
+```text
 "Chat with qwen2.5: write a Python function to sort a list"
 "Use deepseek-coder to debug this code: [paste code]"
 "Ask phi3.5 to explain quantum computing"
@@ -187,7 +202,7 @@ Ollama MCP Server works through your MCP client - you interact using **natural l
 
 #### System Operations
 
-```
+```text
 "Check if Ollama is running"
 "Start the Ollama server"
 "Analyze my system for AI model compatibility"
@@ -219,26 +234,32 @@ Triggers:
 
 ## 🛠️ Available Tools
 
+The Ollama MCP Server provides a powerful set of tools divided into Base and Advanced categories to support comprehensive model management and server operations. Each tool is designed to enhance the user experience by offering specific functionalities.
+
 ### Base Tools (4)
+
+These are essential tools for everyday operations.
 
 | Tool | Description | Use Case |
 |------|-------------|----------|
-| `list_local_models` | List installed models with details | Inventory management |
-| `local_llm_chat` | Chat directly with local models | AI interaction |
-| `ollama_health_check` | Comprehensive server diagnostics | Troubleshooting |
-| `system_resource_check` | Hardware compatibility analysis | System assessment |
+| `list_local_models` | Lists all locally installed Ollama models with details. | Inventory management |
+| `local_llm_chat` | Allows chatting with a local Ollama model. Messages can be customized with model name and temperature settings. | AI Interaction |
+| `ollama_health_check` | Checks the health of the Ollama server and provides diagnostics if needed. | Troubleshooting |
+| `system_resource_check` | Analyzes system resources and compatibility, including robust GPU detection for AI workloads. | System Assessment |
 
 ### Advanced Tools (7)
 
+Advanced tools provide extended functionality for complex operations.
+
 | Tool | Description | Use Case |
 |------|-------------|----------|
-| `suggest_models` | AI-powered model recommendations | Model selection |
-| `download_model` | Download models with progress tracking | Model acquisition |
-| `check_download_progress` | Monitor download progress | Progress tracking |
-| `remove_model` | Safely remove models from storage | Storage management |
-| `search_available_models` | Search Ollama Hub by category | Model discovery |
-| `start_ollama_server` | Start Ollama server | Server management |
-| `select_chat_model` | Interactive model selection | Model switching |
+| `suggest_models` | Recommends models intelligently based on user requirements and system resources. Options for speed, quality, or balance priorities. | Model Selection |
+| `download_model` | Initiates asynchronous download of a model from the Ollama Hub with tracking capabilities. | Model Acquisition |
+| `check_download_progress` | Monitors the progress of ongoing model downloads using job IDs. Outputs estimated time and completion percentages. | Progress Tracking |
+| `remove_model` | Removes a model from local storage safely, with options to force removal if needed. | Storage Management |
+| `search_available_models` | Searches Ollama Hub for models by specific categories, providing options like code, chat, reasoning, etc. | Model Discovery |
+| `start_ollama_server` | Attempts to start the Ollama server if it is currently offline, ensuring minimal downtime. | Server Management |
+| `select_chat_model` | Assists users in selecting a model for chat interactions, providing a user-friendly interface for message initialization. | Model Switching |
 
 ## 🔧 Client Setup
 
@@ -342,8 +363,6 @@ pytest -v
 # Run with coverage report
 pytest --cov=src/ollama_mcp --cov-report=html
 ```
-
-#### Ollama Not Found
 
 ### Common Issues
 
