@@ -26,7 +26,7 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 from .client import OllamaClient
-from .config import get_config
+from .config import get_settings
 from .tools import get_base_tools, handle_base_tool
 from .tools.advanced_tools import get_advanced_tools, handle_advanced_tool
 
@@ -39,6 +39,7 @@ importlib.reload(advanced_tools)
 
 logger = logging.getLogger(__name__)
 
+startup_logged = False  # Add this at module level
 
 class OllamaMCPServer:
     """
@@ -55,12 +56,12 @@ class OllamaMCPServer:
         """Initialize server with resilient setup"""
         try:
             # Load config
-            self.config = get_config()
+            self.config = get_settings()
             
             # Initialize resilient client (won't fail if Ollama offline)
             self.client = OllamaClient(
-                host=self.config.url,
-                timeout=self.config.timeout
+                host=self.config.ollama_url,
+                timeout=self.config.ollama_timeout
             )
             
             # Create MCP server
@@ -69,7 +70,7 @@ class OllamaMCPServer:
             # Register handlers using v1.0 working pattern
             self._register_handlers()
             
-            logger.info(f"Ollama MCP Server v0.9 initialized for {self.config.url}")
+            logger.info(f"Ollama MCP Server v0.9 initialized for {self.config.ollama_url}")
             
         except Exception as e:
             logger.error(f"Initialization error: {e}")
@@ -117,20 +118,22 @@ class OllamaMCPServer:
                 )]
     
     async def run(self):
-        """Run the MCP server with enhanced startup"""
+        global startup_logged
         try:
-            logger.info("Starting Ollama MCP Server v0.9...")
+            if not startup_logged:
+                logger.warning("Starting Ollama MCP Server v0.9...")
             
             # Test Ollama connection but don't fail startup
             if self.client:
                 health = await self.client.health_check()
                 if health["healthy"]:
-                    logger.info("Ollama connected: %d models available", health['models_count'])
+                    logger.warning("Ollama connected: %d models available", health['models_count'])
                 else:
                     logger.warning("Ollama not accessible: %s", health['error'])
-                    logger.info("Server will start anyway - tools provide diagnostics")
+                    logger.warning("Server will start anyway - tools provide diagnostics")
             
-            logger.info("MCP server ready - 11 tools available (4 base + 7 advanced)")
+            logger.warning("MCP server ready - 11 tools available (4 base + 7 advanced)")
+            startup_logged = True
             
             # Start MCP stdio server
             async with stdio_server() as (read_stream, write_stream):
@@ -150,7 +153,7 @@ def main():
     try:
         # Setup basic logging
         logging.basicConfig(
-            level=logging.INFO,
+            level=logging.WARNING,  # Changed from INFO to WARNING
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         

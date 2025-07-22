@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from enum import Enum
 
-from .config import OllamaConfig, get_config
+from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -169,14 +169,14 @@ class CrossPlatformGPUDetector:
     Detects GPUs from NVIDIA, AMD, Intel, and Apple across different platforms.
     """
     
-    def __init__(self, config: Optional[OllamaConfig] = None):
+    def __init__(self, settings=None):
         """
         Initialize GPU detector
         
         Args:
-            config: Hardware configuration, uses global config if None
+            settings: Application settings, uses global settings if None
         """
-        self.config = config or get_config()
+        self.settings = settings or get_settings()
         self._detection_cache: Optional[List[GPUInfo]] = None
         
         logger.debug("Initialized CrossPlatformGPUDetector")
@@ -188,7 +188,7 @@ class CrossPlatformGPUDetector:
         Returns:
             List of detected GPUs
         """
-        if not getattr(self.config, 'enable_gpu_detection', True):
+        if not getattr(self.settings, 'enable_gpu_acceleration', True):
             logger.info("GPU detection disabled in configuration")
             return [self._create_cpu_fallback()]
         
@@ -463,15 +463,15 @@ class HardwareChecker:
     for different Ollama models across multiple platforms and GPU vendors.
     """
     
-    def __init__(self, config: Optional[OllamaConfig] = None):
+    def __init__(self, settings=None):
         """
         Initialize hardware checker
         
         Args:
-            config: Hardware configuration, uses global config if None
+            settings: Application settings, uses global settings if None
         """
-        self.config = config or get_config()
-        self.gpu_detector = CrossPlatformGPUDetector(self.config)
+        self.settings = settings or get_settings()
+        self.gpu_detector = CrossPlatformGPUDetector(self.settings)
         
         logger.debug("Initialized HardwareChecker")
     
@@ -696,7 +696,7 @@ class HardwareChecker:
             best_gpu = max(system_info["gpu_info"], key=lambda g: g["total_memory_gb"])
             gpu_memory = best_gpu["total_memory_gb"]
             
-            if estimated_vram <= gpu_memory * getattr(self.config, 'gpu_memory_fraction', 0.8):
+            if estimated_vram <= gpu_memory * 0.8:  # Use 80% GPU memory fraction
                 reasons.append(f"GPU acceleration available ({best_gpu['vendor']} {best_gpu['name']})")
                 if performance_tier == "excellent":
                     performance_tier = "excellent"
@@ -706,15 +706,11 @@ class HardwareChecker:
                 if performance_tier in ["excellent", "good"]:
                     performance_tier = "good"
         else:
-            if getattr(self.config, 'enable_cpu_fallback', True):
-                warnings.append("No GPU detected - CPU-only processing")
-                reasons.append("CPU processing supported")
-                if performance_tier == "excellent":
-                    performance_tier = "good"
-            else:
-                compatible = False
-                reasons.append("GPU required but not available")
-                recommendations.append("Install GPU drivers or enable CPU fallback")
+            # Always enable CPU fallback for now
+            warnings.append("No GPU detected - CPU-only processing")
+            reasons.append("CPU processing supported")
+            if performance_tier == "excellent":
+                performance_tier = "good"
         
         # Performance predictions based on model size
         if estimated_ram <= 4:
@@ -728,9 +724,10 @@ class HardwareChecker:
             if performance_tier not in ["poor"]:
                 performance_tier = "moderate"
         
-        # Memory threshold check
-        if available_ram < getattr(self.config, 'memory_threshold_gb', 4.0):
-            warnings.append(f"System RAM below recommended threshold ({getattr(self.config, 'memory_threshold_gb', 4.0)}GB)")
+        # Memory threshold check - use default 4.0GB threshold
+        memory_threshold = 4.0
+        if available_ram < memory_threshold:
+            warnings.append(f"System RAM below recommended threshold ({memory_threshold}GB)")
             recommendations.append("Close unnecessary applications or upgrade RAM")
         
         return ModelCompatibility(
