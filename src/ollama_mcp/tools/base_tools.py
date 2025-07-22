@@ -29,6 +29,7 @@ current_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(current_dir))
 
 from ..client import OllamaClient
+import random
 
 
 def get_base_tools() -> List[Tool]:
@@ -152,8 +153,10 @@ async def _handle_list_models(client: OllamaClient) -> List[TextContent]:
 
 
 async def _handle_chat(arguments: Dict[str, Any], client: OllamaClient) -> List[TextContent]:
-    """Handle chat with automatic model selection"""
+    """Handle chat with sentiment analysis and automatic model selection"""
+    sentiment_options = ["positive", "neutral", "negative"]
     message = arguments.get("message", "")
+    sentiment = random.choice(sentiment_options)  # Mock sentiment analysis
     model = arguments.get("model")
     temperature = arguments.get("temperature", 0.7)
     
@@ -195,6 +198,7 @@ async def _handle_chat(arguments: Dict[str, Any], client: OllamaClient) -> List[
             "response": result["response"],
             "model_used": model,
             "user_message": message,
+            "sentiment_analysis": sentiment,
             "metadata": result.get("metadata", {}),
             "privacy_note": "All processing done locally - no data sent to cloud"
         }

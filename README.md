@@ -61,9 +61,12 @@ Ollama MCP Server provides a complete interface for managing Ollama through MCP-
 ### 🎛️ Advanced Features
 
 - **AI-Powered Recommendations**: Get model suggestions based on your needs
+- **Sentiment Analysis**: Enhanced chat interactions with sentiment detection
+- **Multi-threaded Downloads**: Optimized model downloads with parallel processing
 - **Progress Tracking**: Monitor downloads with real-time progress indicators
 - **Multi-GPU Support**: NVIDIA, AMD, Intel, and Apple Silicon detection
 - **Intelligent Fallbacks**: Automatic model selection and error recovery
+- **Environment-based Logging**: Configurable log paths and service management
 
 ## 🚀 Quick Start
 
@@ -152,11 +155,22 @@ echo '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVe
 
 ### Environment Variables
 
+#### Core Configuration
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OLLAMA_HOST` | `localhost` | Ollama server host |
 | `OLLAMA_PORT` | `11434` | Ollama server port |
 | `OLLAMA_TIMEOUT` | `30` | Request timeout in seconds |
+
+#### Logging Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_MCP_LOG_DIR` | `/tmp` | Base directory for all log files |
+| `OLLAMA_MCP_LOG_FILE` | `$LOG_DIR/ollama_mcp_server.log` | Main application log file |
+| `OLLAMA_MCP_ERROR_LOG_FILE` | `$LOG_DIR/ollama_mcp_server_error.log` | Error log file |
+| `OLLAMA_MCP_PID_FILE` | `$LOG_DIR/ollama_mcp_server.pid` | Process ID file |
 
 ### Advanced Configuration
 
@@ -239,13 +253,12 @@ The Ollama MCP Server provides a powerful set of tools divided into Base and Adv
 ### Base Tools (4)
 
 These are essential tools for everyday operations.
-
-| Tool | Description | Use Case |
+|| Tool | Description | Use Case |
 |------|-------------|----------|
-| `list_local_models` | Lists all locally installed Ollama models with details. | Inventory management |
-| `local_llm_chat` | Allows chatting with a local Ollama model. Messages can be customized with model name and temperature settings. | AI Interaction |
-| `ollama_health_check` | Checks the health of the Ollama server and provides diagnostics if needed. | Troubleshooting |
-| `system_resource_check` | Analyzes system resources and compatibility, including robust GPU detection for AI workloads. | System Assessment |
+| `list_local_models` | Lists all locally installed Ollama models with details and usage tips. | Inventory management |
+| `local_llm_chat` | **Enhanced**: Chatting with local models now includes sentiment analysis for improved interactions. Supports model name and temperature customization. | AI Interaction with Analytics |
+| `ollama_health_check` | Comprehensive server health check with actionable diagnostics and troubleshooting guidance. | System Troubleshooting |
+| `system_resource_check` | **Enhanced**: Advanced system analysis with cross-platform GPU detection, AI readiness assessment, and detailed recommendations. | System Assessment |
 
 ### Advanced Tools (7)
 

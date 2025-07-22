@@ -27,6 +27,7 @@ current_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(current_dir))
 
 from ..client import OllamaClient
+from concurrent.futures import ThreadPoolExecutor
 from ..job_manager import get_job_manager
 from ..model_manager import ModelManager
 
@@ -211,7 +212,10 @@ async def _handle_suggest_models(arguments: Dict[str, Any], client: OllamaClient
 
 
 async def _handle_download_model(arguments: Dict[str, Any], client: OllamaClient) -> List[TextContent]:
-    """Start asynchronous model download"""
+    """Start asynchronous model download with multi-threading"""
+    def download_task(name):
+        return ModelManager(client).download_model_async(name, show_progress=True)
+
     model_name = arguments.get("model_name", "")
     
     if not model_name:
@@ -226,7 +230,8 @@ async def _handle_download_model(arguments: Dict[str, Any], client: OllamaClient
     
     # Use ModelManager for download
     model_manager = ModelManager(client)
-    result = await model_manager.download_model_async(model_name, show_progress=True)
+    with ThreadPoolExecutor() as executor:
+        result = await executor.submit(download_task, model_name)
     
     return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
